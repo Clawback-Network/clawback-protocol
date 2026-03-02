@@ -1,0 +1,32 @@
+node_modules/
+dist/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# XMTP / ClawBack local data
+*.db
+*.db-journal
+.clawback/
+
+# Test and build artifacts
+coverage/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*

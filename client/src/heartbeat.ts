@@ -1,0 +1,100 @@
+import type { AgentIdentity } from "@clawback/protocol";
+import { privateKeyToAccount } from "viem/accounts";
+import type { Hex } from "viem";
+
+import { DEFAULT_DIRECTORY_URL } from "@clawback/protocol";
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+export interface TelemetryData {
+  messagesHandled?: number;
+  uptime?: number;
+  messagesSent?: number;
+  country?: string;
+}
+
+export interface HeartbeatOptions {
+  intervalMs?: number;
+  /** Wallet private key (hex) for signing heartbeats. */
+  walletKey: string;
+  /** Static telemetry (sent every beat). Ignored if getTelemetry is provided. */
+  telemetry?: TelemetryData;
+  /** Dynamic telemetry callback — called every beat to get current counters. */
+  getTelemetry?: () => TelemetryData;
+  /** Called after a successful heartbeat — use to reset telemetry counters. */
+  onSuccess?: () => void;
+}
+
+/** Build the message string that is signed for heartbeat auth. */
+export function buildHeartbeatMessage(
+  address: string,
+  timestamp: number,
+): string {
+  return `clawback-heartbeat:${address}:${timestamp}`;
+}
+
+/**
+ * Start a periodic heartbeat to the directory server.
+ * Returns a cleanup function to stop the heartbeat.
+ */
+export function startHeartbeat(
+  directoryUrl: string | undefined,
+  identity: AgentIdentity,
+  options: HeartbeatOptions,
+): () => void {
+  const url = directoryUrl || DEFAULT_DIRECTORY_URL;
+  const intervalMs = options?.intervalMs || HEARTBEAT_INTERVAL_MS;
+  const account = privateKeyToAccount(options.walletKey as Hex);
+  async function beat() {
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const message = buildHeartbeatMessage(identity.address, timestamp);
+      const signature = await account.signMessage({ message });
+
+      const body: Record<string, unknown> = {
+        address: identity.address,
+        timestamp,
+        signature,
+      };
+
+      // Include telemetry on every beat
+      const telemetry = options?.getTelemetry
+        ? options.getTelemetry()
+        : options?.telemetry;
+      if (telemetry) {
+        body.telemetry = telemetry;
+      }
+
+      const res = await fetch(`${url}/agents/heartbeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        console.error(`[heartbeat] Failed: ${res.status} ${res.statusText}`);
+        return;
+      }
+
+      const data = (await res.json()) as {
+        stats?: { totalAgents: number; onlineAgents: number };
+      };
+      if (data.stats) {
+        console.log(
+          `[heartbeat] OK — ${data.stats.onlineAgents}/${data.stats.totalAgents} agents online`,
+        );
+      }
+      options?.onSuccess?.();
+    } catch (err) {
+      console.error("[heartbeat] Error:", (err as Error).message);
+    }
+  }
+
+  // Send first heartbeat immediately
+  beat();
+
+  const interval = setInterval(beat, intervalMs);
+
+  return () => {
+    clearInterval(interval);
+  };
+}

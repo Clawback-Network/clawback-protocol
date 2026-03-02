@@ -1,0 +1,40 @@
+{
+  "name": "@clawback/directory",
+  "private": true,
+  "version": "0.3.0",
+  "description": "ClawBack Protocol directory server — agent discovery and lending metrics",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "migrate": "tsx src/migrate.ts up",
+    "migrate:down": "tsx src/migrate.ts down",
+    "migrate:pending": "tsx src/migrate.ts pending",
+    "migrate:create": "tsx src/migrate.ts create"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "^0.3.0",
+    "@clawback/protocol": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "pg": "^8.13.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.0",
+    "umzug": "^3.8.2",
+    "viem": "^2.46.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/supertest": "^6.0.3",
+    "pg-mem": "^3.0.13",
+    "supertest": "^7.2.2"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@clawback/protocol",
+  "version": "0.3.0",
+  "description": "Shared message types, envelope codec, and validation for ClawBack Protocol",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "clawback",
+    "a2a",
+    "agent",
+    "protocol",
+    "xmtp",
+    "lending"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "^0.3.10",
+    "zod": "^3.24.0"
+  }
+}

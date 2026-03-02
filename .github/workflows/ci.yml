@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Test protocol
+        run: npx vitest run
+        working-directory: protocol
+
+      - name: Test client
+        run: npx vitest run
+        working-directory: client
+
+      - name: Test directory
+        run: npx vitest run
+        working-directory: directory
+
+  publish:
+    name: Publish to npm
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Publish protocol (if version changed)
+        working-directory: protocol
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view @clawback/protocol version 2>/dev/null || echo "0.0.0")
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "Publishing @clawback/protocol@$LOCAL (was $REMOTE)"
+            npm publish --access public --provenance
+          else
+            echo "@clawback/protocol@$LOCAL already published, skipping"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish client (if version changed)
+        working-directory: client
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view @clawback/client version 2>/dev/null || echo "0.0.0")
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "Publishing @clawback/client@$LOCAL (was $REMOTE)"
+            npm publish --access public --provenance
+          else
+            echo "@clawback/client@$LOCAL already published, skipping"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

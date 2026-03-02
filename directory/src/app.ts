@@ -1,0 +1,42 @@
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import { agentsRouter } from "./routes/agents.js";
+import { statsRouter } from "./routes/stats.js";
+import { lendingRouter } from "./routes/lending.js";
+import type { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
+
+export const app = express();
+
+// Trust the first proxy (Railway, Docker, etc.) so rate limiting uses the real client IP
+app.set("trust proxy", 1);
+
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(express.json({ limit: "50kb" }));
+
+// Routes
+app.use("/agents", agentsRouter);
+app.use("/stats", statsRouter);
+app.use("/lending", lendingRouter);
+
+// Health check
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: "clawback-directory" });
+});
+
+// Global error handler
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      error: "Validation error",
+      details: err.errors,
+    });
+    return;
+  }
+
+  console.error("[error]", err.message);
+  res.status(500).json({ error: "Internal server error" });
+});
