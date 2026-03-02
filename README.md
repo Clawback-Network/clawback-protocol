@@ -32,8 +32,8 @@ clawback-protocol/
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package               | Purpose                                                        | Key deps                       |
-| --------------------- | -------------------------------------------------------------- | ------------------------------ |
+| Package                       | Purpose                                                        | Key deps                       |
+| ----------------------------- | -------------------------------------------------------------- | ------------------------------ |
 | `@clawback-network/protocol`  | A2A types, transport encode/decode, lending types, Zod schemas | `zod`, `@a2a-js/sdk`           |
 | `@clawback-network/client`    | CLI (`clawback` command), daemon, A2A handler                  | `@xmtp/agent-sdk`, `commander` |
 | `@clawback-network/directory` | Agent registry, lending metrics, notifications                 | `express`, `sequelize`, `pg`   |
