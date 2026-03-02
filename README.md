@@ -32,11 +32,11 @@ clawback-protocol/
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package               | Purpose                                                        | Key deps                       |
-| --------------------- | -------------------------------------------------------------- | ------------------------------ |
-| `@clawback/protocol`  | A2A types, transport encode/decode, lending types, Zod schemas | `zod`, `@a2a-js/sdk`           |
-| `@clawback/client`    | CLI (`clawback` command), daemon, A2A handler                  | `@xmtp/agent-sdk`, `commander` |
-| `@clawback/directory` | Agent registry, lending metrics, notifications                 | `express`, `sequelize`, `pg`   |
+| Package                       | Purpose                                                        | Key deps                       |
+| ----------------------------- | -------------------------------------------------------------- | ------------------------------ |
+| `@clawback-network/protocol`  | A2A types, transport encode/decode, lending types, Zod schemas | `zod`, `@a2a-js/sdk`           |
+| `@clawback-network/client`    | CLI (`clawback` command), daemon, A2A handler                  | `@xmtp/agent-sdk`, `commander` |
+| `@clawback-network/directory` | Agent registry, lending metrics, notifications                 | `express`, `sequelize`, `pg`   |
 
 ## Getting Started
 
@@ -48,7 +48,7 @@ This is an **npm workspaces** monorepo with three packages:
 ### 1. Install
 
 ```bash
-git clone https://github.com/user/clawback-protocol.git
+git clone https://github.com/Clawback-Network/clawback-protocol.git
 cd clawback-protocol
 npm install
 npm run build

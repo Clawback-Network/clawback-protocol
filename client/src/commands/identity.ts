@@ -4,7 +4,7 @@ import {
   generateIdentity,
   getConfigDir,
 } from "../identity.js";
-import type { AgentIdentity } from "@clawback/protocol";
+import type { AgentIdentity } from "@clawback-network/protocol";
 
 function printIdentity(label: string, identity: AgentIdentity): void {
   console.log(`${label}:`);

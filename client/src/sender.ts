@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Agent } from "@xmtp/agent-sdk";
 import type { Conversation } from "@xmtp/node-sdk";
-import type { Message } from "@clawback/protocol";
+import type { Message } from "@clawback-network/protocol";
 import {
   textPart,
   createMessage,
@@ -12,7 +12,7 @@ import {
   createGetTaskRequest,
   createCancelTaskRequest,
   encodeA2AMessage,
-} from "@clawback/protocol";
+} from "@clawback-network/protocol";
 
 type HexAddress = `0x${string}`;
 

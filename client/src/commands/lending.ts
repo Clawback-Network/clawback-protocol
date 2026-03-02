@@ -1,4 +1,4 @@
-import { DEFAULT_DIRECTORY_URL } from "@clawback/protocol";
+import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
 
 const getDirectoryUrl = () =>
   process.env.CLAWBACK_DIRECTORY_URL || DEFAULT_DIRECTORY_URL;

@@ -3,7 +3,7 @@ import { Op } from "sequelize";
 import {
   registerPayloadSchema,
   heartbeatPayloadSchema,
-} from "@clawback/protocol";
+} from "@clawback-network/protocol";
 import type { AgentCard } from "@a2a-js/sdk";
 import { verifyMessage, getAddress } from "viem";
 import type { Hex } from "viem";

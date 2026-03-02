@@ -8,8 +8,8 @@ import {
   buildSkill,
   DEFAULT_DIRECTORY_URL,
   extractLendingAction,
-} from "@clawback/protocol";
-import type { TaskState, DataPart } from "@clawback/protocol";
+} from "@clawback-network/protocol";
+import type { TaskState, DataPart } from "@clawback-network/protocol";
 import { InMemoryTaskStore } from "@a2a-js/sdk/server";
 import {
   getOrCreateIdentity,
@@ -19,7 +19,7 @@ import {
 import { createClawBackAgent } from "./agent.js";
 import { handleA2AMessage } from "./handler.js";
 import { createDefaultLogicHandler } from "./logic.js";
-import { decodeA2AMessage, isA2ARequest } from "@clawback/protocol";
+import { decodeA2AMessage, isA2ARequest } from "@clawback-network/protocol";
 import { appendMessage } from "./messages.js";
 import { startHeartbeat } from "./heartbeat.js";
 import { loadConfig, DEFAULT_DEDUP_WINDOW_MS } from "./config.js";

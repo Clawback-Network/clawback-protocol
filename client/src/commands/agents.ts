@@ -1,6 +1,6 @@
 import type { AgentCard } from "@a2a-js/sdk";
 
-import { DEFAULT_DIRECTORY_URL } from "@clawback/protocol";
+import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
 
 interface AgentsOptions {
   query?: string;
