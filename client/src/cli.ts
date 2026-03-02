@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import "dotenv/config";
 import { Command } from "commander";
-import { CLAWBACK_VERSION } from "@clawback/protocol";
+import { CLAWBACK_VERSION } from "@clawback-network/protocol";
 import { identityCommand } from "./commands/identity.js";
 import { agentsCommand } from "./commands/agents.js";
 import { agentCommand } from "./commands/agent.js";

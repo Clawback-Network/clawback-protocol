@@ -1,8 +1,8 @@
-import type { AgentIdentity } from "@clawback/protocol";
+import type { AgentIdentity } from "@clawback-network/protocol";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Hex } from "viem";
 
-import { DEFAULT_DIRECTORY_URL } from "@clawback/protocol";
+import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface TelemetryData {

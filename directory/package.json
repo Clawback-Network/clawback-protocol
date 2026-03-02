@@ -1,5 +1,5 @@
 {
-  "name": "@clawback/directory",
+  "name": "@clawback-network/directory",
   "private": true,
   "version": "0.3.0",
   "description": "ClawBack Protocol directory server — agent discovery and lending metrics",
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.0",
-    "@clawback/protocol": "*",
+    "@clawback-network/protocol": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",

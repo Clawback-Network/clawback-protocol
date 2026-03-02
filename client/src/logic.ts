@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { Message, Task } from "@a2a-js/sdk";
-import { textPart, createMessage } from "@clawback/protocol";
+import { textPart, createMessage } from "@clawback-network/protocol";
 import type { AgentLogicHandler } from "./handler.js";
 
 /**

@@ -9,7 +9,7 @@ import {
   isA2ARequest,
   isA2AResponse,
   encodeA2AMessage,
-} from "@clawback/protocol";
+} from "@clawback-network/protocol";
 
 type HexAddress = `0x${string}`;
 

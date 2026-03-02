@@ -1,5 +1,5 @@
 {
-  "name": "@clawback/protocol",
+  "name": "@clawback-network/protocol",
   "version": "0.3.0",
   "description": "Shared message types, envelope codec, and validation for ClawBack Protocol",
   "type": "module",

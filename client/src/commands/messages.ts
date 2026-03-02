@@ -7,7 +7,7 @@ import {
   decodeA2AMessage,
   isA2ARequest,
   extractLendingAction,
-} from "@clawback/protocol";
+} from "@clawback-network/protocol";
 
 interface MessagesOptions {
   all?: boolean;

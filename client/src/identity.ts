@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { keccak256, toBytes } from "viem";
-import type { AgentIdentity } from "@clawback/protocol";
+import type { AgentIdentity } from "@clawback-network/protocol";
 
 const DEFAULT_CONFIG_DIR = path.join(process.env.HOME || "~", ".clawback");
 
