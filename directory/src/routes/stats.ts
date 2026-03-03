@@ -2,7 +2,6 @@ import { Router } from "express";
 import { Op, fn, col } from "sequelize";
 import { Agent } from "../models/Agent.js";
 import { Snapshot } from "../models/Snapshot.js";
-import { config } from "../config.js";
 import { readLimiter } from "../middleware/rateLimit.js";
 
 export const statsRouter = Router();
