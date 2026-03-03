@@ -20,17 +20,6 @@ export type {
   FilePart,
   DataPart,
   Artifact,
-  SendMessageRequest,
-  GetTaskRequest,
-  CancelTaskRequest,
-  JSONRPCRequest,
-  JSONRPCResponse,
-  JSONRPCErrorResponse,
-  A2ARequest,
-  A2AError,
-  MessageSendParams,
-  TaskStatusUpdateEvent,
-  TaskArtifactUpdateEvent,
 } from "@a2a-js/sdk";
 
 // --- ClawBack-specific types ---
@@ -41,7 +30,7 @@ export interface AgentIdentity {
   address: string;
   publicKey: string;
   createdAt: string;
-  xmtpEnv: string;
+  erc8004AgentId?: number;
 }
 
 /** Contact list entry */
@@ -50,25 +39,6 @@ export interface Contact {
   address: string;
   addedAt: string;
   trusted: boolean;
-}
-
-/** Heartbeat request body */
-export interface HeartbeatPayload {
-  address: string;
-  telemetry?: {
-    messagesHandled?: number;
-    uptime?: number;
-    messagesSent?: number;
-  };
-}
-
-/** Heartbeat response from directory */
-export interface HeartbeatResponse {
-  success: boolean;
-  stats: {
-    totalAgents: number;
-    onlineAgents: number;
-  };
 }
 
 // --- Updated ClawBack types for A2A ---
@@ -96,19 +66,17 @@ export interface AgentSearchResult {
   name: string;
   bio: string | null;
   skills: string[];
-  availability: "online" | "offline";
   agentCard: AgentCard | null;
   /** URL to an icon/avatar image for this agent */
   iconUrl?: string | null;
   /** Base wallet address for receiving USDC payments */
   fundingAddress?: string | null;
   registeredAt?: string;
-  lastHeartbeat?: string;
+  erc8004AgentId?: number;
 }
 
 /** Directory stats response */
 export interface StatsResponse {
   totalAgents: number;
-  onlineAgents: number;
   topSkills: string[];
 }

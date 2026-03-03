@@ -1,9 +1,31 @@
+import { encodeFunctionData } from "viem";
 import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
+import { createWalletProvider } from "../wallet/factory.js";
+import { clawBackLendingWriteAbi } from "../wallet/abi.js";
+import {
+  parseUsdc,
+  aprToBps,
+  generateLoanId,
+  approveUsdc,
+  waitForTx,
+} from "../wallet/helpers.js";
 
 const getDirectoryUrl = () =>
   process.env.CLAWBACK_DIRECTORY_URL || DEFAULT_DIRECTORY_URL;
 
-/** clawback request — submit a loan request */
+function getContractAddress(): `0x${string}` {
+  const addr = process.env.CONTRACT_ADDRESS;
+  if (!addr) {
+    throw new Error(
+      "CONTRACT_ADDRESS is required. Set it to the ClawBackLending contract address.",
+    );
+  }
+  return addr as `0x${string}`;
+}
+
+// ─── Write Commands (on-chain transactions) ────────────────────────
+
+/** clawback request — create a loan on-chain */
 export async function requestCommand(options: {
   amount: string;
   duration: string;
@@ -12,135 +34,185 @@ export async function requestCommand(options: {
   deadline?: string;
   collateral?: string;
 }): Promise<void> {
-  const directoryUrl = getDirectoryUrl();
-
-  const payload: Record<string, unknown> = {
-    amount_requested: parseFloat(options.amount),
-    duration_days: parseInt(options.duration, 10),
-    purpose: options.purpose,
-    funding_deadline_hours: parseInt(options.deadline || "48", 10),
-  };
-
-  if (options.minFunding) {
-    payload.min_funding_amount = parseFloat(options.minFunding);
-  }
-  if (options.collateral) {
-    payload.collateral_amount = parseFloat(options.collateral);
-  }
-
   try {
-    // POST to directory to create the loan request
-    const res = await fetch(`${directoryUrl}/lending/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const wallet = createWalletProvider();
+    const contractAddress = getContractAddress();
+
+    const amount = parseUsdc(parseFloat(options.amount));
+    const minFunding = options.minFunding
+      ? parseUsdc(parseFloat(options.minFunding))
+      : amount;
+    const collateral = options.collateral
+      ? parseUsdc(parseFloat(options.collateral))
+      : 0n;
+    const durationDays = BigInt(parseInt(options.duration, 10));
+    const deadlineHours = BigInt(parseInt(options.deadline || "48", 10));
+    const loanId = generateLoanId();
+
+    const address = await wallet.getAddress();
+    console.log(`Wallet: ${address}`);
+
+    // Approve collateral transfer if needed
+    if (collateral > 0n) {
+      console.log(`Approving ${options.collateral} USDC collateral...`);
+      const approveTx = await approveUsdc(wallet, contractAddress, collateral);
+      console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
+      await waitForTx(approveTx);
+      console.log("  Approved.");
+    }
+
+    // Encode and send createLoan transaction
+    const data = encodeFunctionData({
+      abi: clawBackLendingWriteAbi,
+      functionName: "createLoan",
+      args: [loanId, amount, minFunding, collateral, durationDays, deadlineHours],
     });
 
-    if (res.ok) {
-      const data = (await res.json()) as { loanId: string };
-      console.log(`Loan request created: ${data.loanId}`);
-      console.log(`  Amount: ${options.amount} USDC`);
-      console.log(`  Duration: ${options.duration} days`);
-      console.log(`  Purpose: ${options.purpose}`);
+    console.log("Submitting loan request...");
+    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
+    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
+
+    const receipt = await waitForTx(txHash);
+    if (receipt.status === "success") {
+      console.log(`\nLoan request created successfully!`);
+      console.log(`  Loan ID:    ${loanId}`);
+      console.log(`  Amount:     ${options.amount} USDC`);
+      console.log(`  Duration:   ${options.duration} days`);
+      console.log(`  Collateral: ${options.collateral || "0"} USDC`);
+      console.log(`  Deadline:   ${options.deadline || "48"} hours`);
+      console.log(`  Purpose:    ${options.purpose}`);
     } else {
-      const err = (await res.json()) as { error?: string };
-      console.error(`Failed: ${err.error || res.statusText}`);
+      console.error("Transaction reverted.");
     }
   } catch (err) {
-    console.error(`Could not reach directory: ${(err as Error).message}`);
+    console.error(`Failed: ${(err as Error).message}`);
   }
 }
 
-/** clawback assess — submit an assessment for a loan */
+/** clawback assess — stake on a loan on-chain */
 export async function assessCommand(
   loanId: string,
   options: { stake: string; apr: string; rationale?: string },
 ): Promise<void> {
-  const directoryUrl = getDirectoryUrl();
-
-  const payload: Record<string, unknown> = {
-    loan_id: loanId,
-    stake_amount: parseFloat(options.stake),
-    apr: parseFloat(options.apr),
-    decision: "fund",
-  };
-
-  if (options.rationale) {
-    payload.rationale = options.rationale;
-  }
-
   try {
-    const res = await fetch(`${directoryUrl}/lending/assess`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const wallet = createWalletProvider();
+    const contractAddress = getContractAddress();
+
+    const stakeAmount = parseUsdc(parseFloat(options.stake));
+    const aprBps = aprToBps(parseFloat(options.apr));
+    const loanIdBytes = loanId as `0x${string}`;
+
+    const address = await wallet.getAddress();
+    console.log(`Wallet: ${address}`);
+
+    // Approve stake transfer
+    console.log(`Approving ${options.stake} USDC stake...`);
+    const approveTx = await approveUsdc(wallet, contractAddress, stakeAmount);
+    console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
+    await waitForTx(approveTx);
+    console.log("  Approved.");
+
+    // Encode and send assess transaction
+    const data = encodeFunctionData({
+      abi: clawBackLendingWriteAbi,
+      functionName: "assess",
+      args: [loanIdBytes, stakeAmount, aprBps],
     });
 
-    if (res.ok) {
-      const data = (await res.json()) as { assessmentId: string };
-      console.log(`Assessment submitted: ${data.assessmentId}`);
-      console.log(`  Loan: ${loanId}`);
+    console.log("Submitting assessment...");
+    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
+    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
+
+    const receipt = await waitForTx(txHash);
+    if (receipt.status === "success") {
+      console.log(`\nAssessment submitted successfully!`);
+      console.log(`  Loan:  ${loanId}`);
       console.log(`  Stake: ${options.stake} USDC`);
-      console.log(`  APR: ${options.apr}%`);
+      console.log(`  APR:   ${options.apr}%`);
     } else {
-      const err = (await res.json()) as { error?: string };
-      console.error(`Failed: ${err.error || res.statusText}`);
+      console.error("Transaction reverted.");
     }
   } catch (err) {
-    console.error(`Could not reach directory: ${(err as Error).message}`);
+    console.error(`Failed: ${(err as Error).message}`);
   }
 }
 
-/** clawback withdraw — withdraw an assessment */
+/** clawback withdraw — withdraw assessment on-chain */
 export async function withdrawCommand(loanId: string): Promise<void> {
-  const directoryUrl = getDirectoryUrl();
-
   try {
-    const res = await fetch(`${directoryUrl}/lending/withdraw`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ loan_id: loanId }),
+    const wallet = createWalletProvider();
+    const contractAddress = getContractAddress();
+    const loanIdBytes = loanId as `0x${string}`;
+
+    const address = await wallet.getAddress();
+    console.log(`Wallet: ${address}`);
+
+    const data = encodeFunctionData({
+      abi: clawBackLendingWriteAbi,
+      functionName: "withdrawAssessment",
+      args: [loanIdBytes],
     });
 
-    if (res.ok) {
-      console.log(`Assessment withdrawn for loan: ${loanId}`);
+    console.log("Withdrawing assessment...");
+    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
+    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
+
+    const receipt = await waitForTx(txHash);
+    if (receipt.status === "success") {
+      console.log(`\nAssessment withdrawn for loan: ${loanId}`);
     } else {
-      const err = (await res.json()) as { error?: string };
-      console.error(`Failed: ${err.error || res.statusText}`);
+      console.error("Transaction reverted.");
     }
   } catch (err) {
-    console.error(`Could not reach directory: ${(err as Error).message}`);
+    console.error(`Failed: ${(err as Error).message}`);
   }
 }
 
-/** clawback repay — make a repayment */
+/** clawback repay — repay a loan on-chain */
 export async function repayCommand(
   loanId: string,
   options: { amount: string },
 ): Promise<void> {
-  const directoryUrl = getDirectoryUrl();
-
   try {
-    const res = await fetch(`${directoryUrl}/lending/repay`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        loan_id: loanId,
-        amount: parseFloat(options.amount),
-      }),
+    const wallet = createWalletProvider();
+    const contractAddress = getContractAddress();
+
+    const amount = parseUsdc(parseFloat(options.amount));
+    const loanIdBytes = loanId as `0x${string}`;
+
+    const address = await wallet.getAddress();
+    console.log(`Wallet: ${address}`);
+
+    // Approve repayment transfer
+    console.log(`Approving ${options.amount} USDC repayment...`);
+    const approveTx = await approveUsdc(wallet, contractAddress, amount);
+    console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
+    await waitForTx(approveTx);
+    console.log("  Approved.");
+
+    const data = encodeFunctionData({
+      abi: clawBackLendingWriteAbi,
+      functionName: "repay",
+      args: [loanIdBytes, amount],
     });
 
-    if (res.ok) {
-      console.log(`Repayment submitted for loan: ${loanId}`);
+    console.log("Submitting repayment...");
+    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
+    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
+
+    const receipt = await waitForTx(txHash);
+    if (receipt.status === "success") {
+      console.log(`\nRepayment submitted for loan: ${loanId}`);
       console.log(`  Amount: ${options.amount} USDC`);
     } else {
-      const err = (await res.json()) as { error?: string };
-      console.error(`Failed: ${err.error || res.statusText}`);
+      console.error("Transaction reverted.");
     }
   } catch (err) {
-    console.error(`Could not reach directory: ${(err as Error).message}`);
+    console.error(`Failed: ${(err as Error).message}`);
   }
 }
+
+// ─── Read Commands (unchanged — query directory API) ───────────────
 
 /** clawback loans — list loans */
 export async function loansCommand(options: {

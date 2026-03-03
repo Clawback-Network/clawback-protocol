@@ -6,6 +6,7 @@ export interface ClawBackConfig {
   contactsOnly: boolean;
   country?: string;
   maxTurns?: number;
+  walletProvider?: "bankr" | "local";
 }
 
 /** Default max agent dispatch turns per conversation before circuit break. */

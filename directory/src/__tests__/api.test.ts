@@ -2,37 +2,10 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { newDb } from "pg-mem";
 import { Sequelize } from "sequelize";
 import supertest from "supertest";
-import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { initDb } from "../db.js";
 import { app } from "../app.js";
 
 let request: supertest.SuperTest<supertest.Test>;
-
-/** Generate real keypairs for heartbeat signature tests */
-const testKey = generatePrivateKey();
-const testAccount = privateKeyToAccount(testKey);
-const testAddress = testAccount.address;
-
-/** Helper to build a signed heartbeat payload */
-async function signedHeartbeat(
-  overrides: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
-  const address = (overrides.address as string) || testAddress;
-  const timestamp =
-    (overrides.timestamp as number) || Math.floor(Date.now() / 1000);
-  const message = `clawback-heartbeat:${address}:${timestamp}`;
-  const account = overrides._account || testAccount;
-  const signature = await (account as typeof testAccount).signMessage({
-    message,
-  });
-  return {
-    address,
-    timestamp,
-    signature,
-    ...overrides,
-    _account: undefined,
-  };
-}
 
 /** Helper to build a minimal AgentCard for testing */
 function makeAgentCard(overrides: Record<string, unknown> = {}) {
@@ -177,108 +150,11 @@ describe("GET /agents/search", () => {
     expect(res.body.agents[0].agentCard.url).toContain("xmtp://");
   });
 
-  it("filters by online status", async () => {
-    const res = await request.get("/agents/search?online=true");
-
-    expect(res.status).toBe(200);
-    for (const agent of res.body.agents) {
-      expect(agent.availability).toBe("online");
-    }
-  });
-
   it("returns empty array for no matches", async () => {
     const res = await request.get("/agents/search?q=zzzznonexistent");
 
     expect(res.status).toBe(200);
     expect(res.body.agents).toEqual([]);
-  });
-});
-
-describe("POST /agents/heartbeat", () => {
-  beforeAll(async () => {
-    await request.post("/agents/register").send({
-      address: testAddress,
-      agentCard: makeAgentCard({ name: "Signed Agent" }),
-    });
-  });
-
-  it("accepts heartbeat with valid signature", async () => {
-    const payload = await signedHeartbeat();
-
-    const res = await request.post("/agents/heartbeat").send(payload);
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(typeof res.body.stats.totalAgents).toBe("number");
-    expect(typeof res.body.stats.onlineAgents).toBe("number");
-  });
-
-  it("rejects heartbeat with invalid signature", async () => {
-    const payload = await signedHeartbeat();
-    payload.signature = "0x" + "ab".repeat(65);
-
-    const res = await request.post("/agents/heartbeat").send(payload);
-
-    expect(res.status).toBe(401);
-    expect(res.body.error).toBe("Invalid signature");
-  });
-
-  it("rejects heartbeat signed by wrong key", async () => {
-    const otherKey = generatePrivateKey();
-    const otherAccount = privateKeyToAccount(otherKey);
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const message = `clawback-heartbeat:${testAddress}:${timestamp}`;
-    const signature = await otherAccount.signMessage({ message });
-
-    const res = await request.post("/agents/heartbeat").send({
-      address: testAddress,
-      timestamp,
-      signature,
-    });
-
-    expect(res.status).toBe(401);
-    expect(res.body.error).toBe("Invalid signature");
-  });
-
-  it("rejects heartbeat with expired timestamp", async () => {
-    const expiredTimestamp = Math.floor(Date.now() / 1000) - 600;
-    const message = `clawback-heartbeat:${testAddress}:${expiredTimestamp}`;
-    const signature = await testAccount.signMessage({ message });
-
-    const res = await request.post("/agents/heartbeat").send({
-      address: testAddress,
-      timestamp: expiredTimestamp,
-      signature,
-    });
-
-    expect(res.status).toBe(401);
-    expect(res.body.error).toBe("Timestamp out of range");
-  });
-
-  it("returns 404 for unregistered agent", async () => {
-    const unregKey = generatePrivateKey();
-    const unregAccount = privateKeyToAccount(unregKey);
-    const timestamp = Math.floor(Date.now() / 1000);
-    const message = `clawback-heartbeat:${unregAccount.address}:${timestamp}`;
-    const signature = await unregAccount.signMessage({ message });
-
-    const res = await request.post("/agents/heartbeat").send({
-      address: unregAccount.address,
-      timestamp,
-      signature,
-    });
-
-    expect(res.status).toBe(404);
-  });
-
-  it("rejects missing signature", async () => {
-    const res = await request.post("/agents/heartbeat").send({
-      address: testAddress,
-      timestamp: Math.floor(Date.now() / 1000),
-    });
-
-    expect(res.status).toBe(400);
   });
 });
 
@@ -308,7 +184,6 @@ describe("GET /stats", () => {
 
     expect(res.status).toBe(200);
     expect(typeof res.body.totalAgents).toBe("number");
-    expect(typeof res.body.onlineAgents).toBe("number");
     expect(Array.isArray(res.body.topSkills)).toBe(true);
     expect(res.body.capturedAt).toBeUndefined();
   });
@@ -334,7 +209,6 @@ describe("GET /stats", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.totalAgents).toBe(42);
-    expect(res.body.onlineAgents).toBe(7);
     expect(res.body.topSkills).toEqual(["lending", "defi"]);
     expect(typeof res.body.capturedAt).toBe("string");
   });
@@ -380,7 +254,6 @@ describe("GET /stats/history", () => {
 
     const entry = res.body.history[0];
     expect(typeof entry.totalAgents).toBe("number");
-    expect(typeof entry.onlineAgents).toBe("number");
     expect(typeof entry.messagesReported).toBe("number");
     expect(typeof entry.capturedAt).toBe("string");
   });

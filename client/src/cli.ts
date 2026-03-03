@@ -6,7 +6,6 @@ import { identityCommand } from "./commands/identity.js";
 import { agentsCommand } from "./commands/agents.js";
 import { agentCommand } from "./commands/agent.js";
 import { configShowCommand, configSetCommand } from "./commands/config.js";
-import { messagesCommand } from "./commands/messages.js";
 import {
   requestCommand,
   assessCommand,
@@ -16,13 +15,23 @@ import {
   loanCommand,
   notificationsCommand,
 } from "./commands/lending.js";
-import { startDaemon } from "./daemon.js";
+import {
+  backCommand,
+  adjustBackingCommand,
+  withdrawBackingCommand,
+  drawCommand,
+  creditRepayCommand,
+  registerAgentIdCommand,
+  creditLineCommand,
+  myBackingsCommand,
+  myCreditCommand,
+} from "./commands/credit.js";
 
 const program = new Command();
 
 program
   .name("clawback")
-  .description("ClawBack — agent-native lending protocol over XMTP")
+  .description("ClawBack — agent-native lending protocol")
   .version(CLAWBACK_VERSION);
 
 // clawback identity
@@ -30,25 +39,9 @@ program
   .command("identity")
   .description("Show current identity or generate a new one")
   .option("-g, --generate", "Generate identity (idempotent — reuses existing)")
-  .option(
-    "-f, --force",
-    "Force regeneration (overwrites existing, deletes xmtp.db)",
-  )
+  .option("-f, --force", "Force regeneration (overwrites existing)")
   .action((options) => {
     identityCommand(options);
-  });
-
-// clawback start
-program
-  .command("start")
-  .description(
-    "Start the ClawBack daemon (auto-register + listen for messages)",
-  )
-  .requiredOption("-n, --name <name>", "Agent display name")
-  .option("-b, --bio <bio>", "Agent description / bio")
-  .option("--icon <url>", "URL to an icon/avatar image")
-  .action(async (options) => {
-    await startDaemon(options);
   });
 
 // clawback config
@@ -89,19 +82,6 @@ program
   .argument("<address>", "Agent address to look up")
   .action(async (address: string) => {
     await agentCommand(address);
-  });
-
-// clawback messages
-program
-  .command("messages")
-  .description("View received message inbox (debug)")
-  .option("-a, --all", "Show all messages (up to 1000)")
-  .option("-c, --clear", "Clear the inbox")
-  .option("-f, --from <address>", "Filter by sender address")
-  .option("-s, --since <date>", "Show messages after date (e.g. 2026-02-18)")
-  .option("-w, --watch", "Watch for new messages in real-time")
-  .action((options) => {
-    messagesCommand(options);
   });
 
 // --- Lending commands ---
@@ -181,6 +161,86 @@ program
   .option("--limit <n>", "Maximum number of notifications")
   .action(async (options) => {
     await notificationsCommand(options);
+  });
+
+// --- Credit line commands ---
+
+const credit = program
+  .command("credit")
+  .description("Revolving credit line commands");
+
+credit
+  .command("line")
+  .description("View an agent's credit line")
+  .argument("<address>", "Agent address")
+  .action(async (address: string) => {
+    await creditLineCommand(address);
+  });
+
+credit
+  .command("back")
+  .description("Back an agent with a standing USDC commitment")
+  .argument("<address>", "Agent address to back")
+  .requiredOption("--amount <usdc>", "Max USDC exposure")
+  .requiredOption("--apr <rate>", "Annual rate in percent (e.g. 10)")
+  .action(async (address: string, options) => {
+    await backCommand(address, options);
+  });
+
+credit
+  .command("adjust")
+  .description("Adjust backing amount and APR")
+  .argument("<address>", "Agent address")
+  .requiredOption("--amount <usdc>", "New max USDC exposure")
+  .requiredOption("--apr <rate>", "New APR in percent")
+  .action(async (address: string, options) => {
+    await adjustBackingCommand(address, options);
+  });
+
+credit
+  .command("withdraw")
+  .description("Withdraw all backing from an agent")
+  .argument("<address>", "Agent address to stop backing")
+  .action(async (address: string) => {
+    await withdrawBackingCommand(address);
+  });
+
+credit
+  .command("draw")
+  .description("Draw USDC from your credit line")
+  .requiredOption("--amount <usdc>", "USDC amount to draw")
+  .action(async (options) => {
+    await drawCommand(options);
+  });
+
+credit
+  .command("repay")
+  .description("Repay your credit line")
+  .requiredOption("--amount <usdc>", "USDC amount to repay")
+  .action(async (options) => {
+    await creditRepayCommand(options);
+  });
+
+credit
+  .command("register-agent")
+  .description("Register your ERC-8004 agent ID")
+  .requiredOption("--agent-id <id>", "ERC-8004 agent ID")
+  .action(async (options) => {
+    await registerAgentIdCommand(options);
+  });
+
+credit
+  .command("my-backings")
+  .description("View your backing positions")
+  .action(async () => {
+    await myBackingsCommand();
+  });
+
+credit
+  .command("my-line")
+  .description("View your credit line")
+  .action(async () => {
+    await myCreditCommand();
   });
 
 program.parse();

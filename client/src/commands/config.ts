@@ -29,9 +29,19 @@ export function configSetCommand(key: string, value: string): void {
       config.maxTurns = num;
       break;
     }
+    case "walletProvider": {
+      if (value !== "bankr" && value !== "local") {
+        console.error('walletProvider must be "bankr" or "local"');
+        process.exit(1);
+      }
+      config.walletProvider = value;
+      break;
+    }
     default:
       console.error(`Unknown config key: ${key}`);
-      console.error(`Valid keys: contactsOnly, country, maxTurns`);
+      console.error(
+        `Valid keys: contactsOnly, country, maxTurns, walletProvider`,
+      );
       process.exit(1);
   }
 

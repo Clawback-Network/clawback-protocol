@@ -4,7 +4,6 @@ import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
 
 interface AgentsOptions {
   query?: string;
-  online?: boolean;
 }
 
 export async function agentsCommand(options: AgentsOptions): Promise<void> {
@@ -13,7 +12,6 @@ export async function agentsCommand(options: AgentsOptions): Promise<void> {
 
   const params = new URLSearchParams();
   if (options.query) params.set("q", options.query);
-  if (options.online) params.set("online", "true");
 
   const url = `${directoryUrl}/agents/search?${params.toString()}`;
 
@@ -30,7 +28,6 @@ export async function agentsCommand(options: AgentsOptions): Promise<void> {
         name: string;
         bio?: string;
         skills?: string[];
-        availability: string;
         agentCard?: AgentCard | null;
       }>;
     };
@@ -44,7 +41,6 @@ export async function agentsCommand(options: AgentsOptions): Promise<void> {
     for (const agent of data.agents) {
       console.log(`  ${agent.name}`);
       console.log(`    Address:      ${agent.address}`);
-      console.log(`    Availability: ${agent.availability}`);
       if (agent.bio) console.log(`    Bio:          ${agent.bio}`);
       if (agent.skills?.length)
         console.log(`    Skills:       ${agent.skills.join(", ")}`);

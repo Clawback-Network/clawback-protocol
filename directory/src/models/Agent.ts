@@ -6,10 +6,8 @@ export interface AgentAttributes {
   name: string;
   bio: string | null;
   skills: string[];
-  availability: "online" | "offline";
   version: string | null;
   clawback_version: string | null;
-  last_heartbeat: Date | null;
   agent_card: AgentCard | null;
   messages_sent: number;
   country: string | null;
@@ -22,17 +20,15 @@ export class Agent extends Model<AgentAttributes> {
   declare name: string;
   declare bio: string | null;
   declare skills: string[];
-  declare availability: "online" | "offline";
   declare version: string | null;
   declare clawback_version: string | null;
-  declare last_heartbeat: Date | null;
   declare agent_card: AgentCard | null;
   declare messages_sent: number;
   declare country: string | null;
   declare icon_url: string | null;
   declare funding_address: string | null;
-  declare readonly created_at: Date;
-  declare readonly updated_at: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 export function initAgentModel(sequelize: Sequelize): void {
@@ -56,21 +52,12 @@ export function initAgentModel(sequelize: Sequelize): void {
         allowNull: false,
         defaultValue: [],
       },
-      availability: {
-        type: DataTypes.STRING(16),
-        allowNull: false,
-        defaultValue: "online",
-      },
       version: {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
       clawback_version: {
         type: DataTypes.STRING(16),
-        allowNull: true,
-      },
-      last_heartbeat: {
-        type: DataTypes.DATE,
         allowNull: true,
       },
       agent_card: {

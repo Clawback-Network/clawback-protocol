@@ -2,9 +2,86 @@ import { Router } from "express";
 import { Op } from "sequelize";
 import { AgentLendingMetrics } from "../models/AgentLendingMetrics.js";
 import { Notification } from "../models/Notification.js";
+import { Loan } from "../models/Loan.js";
+import { LoanAssessment } from "../models/LoanAssessment.js";
 import { readLimiter } from "../middleware/rateLimit.js";
 
 export const lendingRouter = Router();
+
+// ─── Loan Endpoints ─────────────────────────────────────────────
+
+/**
+ * GET /lending/loans
+ * List loans with optional filters: ?status=, ?borrower=, ?limit=, ?offset=
+ */
+lendingRouter.get("/loans", readLimiter, async (req, res, next) => {
+  try {
+    const {
+      status,
+      borrower,
+      limit: limitStr,
+      offset: offsetStr,
+    } = req.query;
+    const limit = Math.min(Math.max(1, parseInt(limitStr as string) || 50), 200);
+    const offset = Math.max(0, parseInt(offsetStr as string) || 0);
+
+    const where: Record<string, unknown> = {};
+
+    if (status && typeof status === "string") {
+      where.status = status;
+    }
+
+    if (borrower && typeof borrower === "string") {
+      where.borrower_addr = borrower.toLowerCase();
+    }
+
+    const { rows, count } = await Loan.findAndCountAll({
+      where,
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+
+    res.json({
+      loans: rows,
+      total: count,
+      limit,
+      offset,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /lending/loans/:id
+ * Single loan detail with joined assessments.
+ */
+lendingRouter.get("/loans/:id", readLimiter, async (req, res, next) => {
+  try {
+    const loanId = req.params.id as string;
+    const loan = await Loan.findByPk(loanId);
+
+    if (!loan) {
+      res.status(404).json({ error: "Loan not found" });
+      return;
+    }
+
+    const assessments = await LoanAssessment.findAll({
+      where: { loan_id: loanId },
+      order: [["created_at", "ASC"]],
+    });
+
+    res.json({
+      ...loan.toJSON(),
+      assessments: assessments.map((a) => a.toJSON()),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Agent Metrics Endpoints ────────────────────────────────────
 
 /**
  * GET /lending/agents/:address
@@ -42,10 +119,16 @@ lendingRouter.get("/agents/:address", readLimiter, async (req, res, next) => {
 
 /**
  * POST /lending/agents/:address
- * Update lending metrics for an agent (called by coordinator).
+ * @deprecated Use the on-chain indexer instead. Kept for dev/backward compat.
  */
 lendingRouter.post("/agents/:address", async (req, res, next) => {
   try {
+    res.setHeader("Deprecation", "true");
+    res.setHeader(
+      "Sunset",
+      "Use the on-chain indexer — metrics are now populated automatically from contract events.",
+    );
+
     const addr = (req.params.address as string).toLowerCase();
     const updates = req.body as Record<string, unknown>;
 
@@ -69,6 +152,8 @@ lendingRouter.post("/agents/:address", async (req, res, next) => {
     next(err);
   }
 });
+
+// ─── Notification Endpoints ─────────────────────────────────────
 
 /**
  * GET /lending/notifications
@@ -108,7 +193,7 @@ lendingRouter.get("/notifications", readLimiter, async (req, res, next) => {
         loan_id: n.loan_id,
         agent_addr: n.agent_addr,
         data: n.data,
-        timestamp: n.created_at?.toISOString(),
+        timestamp: n.createdAt?.toISOString(),
       })),
     });
   } catch (err) {
@@ -118,10 +203,16 @@ lendingRouter.get("/notifications", readLimiter, async (req, res, next) => {
 
 /**
  * POST /lending/notifications
- * Create a notification (called by coordinator).
+ * @deprecated Use the on-chain indexer instead. Kept for dev/backward compat.
  */
 lendingRouter.post("/notifications", async (req, res, next) => {
   try {
+    res.setHeader("Deprecation", "true");
+    res.setHeader(
+      "Sunset",
+      "Use the on-chain indexer — notifications are now created automatically from contract events.",
+    );
+
     const { type, loan_id, agent_addr, data } = req.body as {
       type: string;
       loan_id: string;

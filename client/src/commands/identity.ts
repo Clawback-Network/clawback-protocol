@@ -10,7 +10,6 @@ function printIdentity(label: string, identity: AgentIdentity): void {
   console.log(`${label}:`);
   console.log(`  Address:    ${identity.address}`);
   console.log(`  Public Key: ${identity.publicKey}`);
-  console.log(`  XMTP Env:   ${identity.xmtpEnv}`);
   console.log(`  Created:    ${identity.createdAt}`);
 }
 

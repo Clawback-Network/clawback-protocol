@@ -28,8 +28,8 @@ export class AgentLendingMetrics extends Model<AgentLendingMetricsAttributes> {
   declare total_earned: number;
   declare total_lost: number;
   declare blacklisted: boolean;
-  declare readonly created_at: Date;
-  declare readonly updated_at: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 export function initAgentLendingMetricsModel(sequelize: Sequelize): void {

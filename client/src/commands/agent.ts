@@ -5,11 +5,20 @@ interface AgentProfile {
   name: string;
   bio: string | null;
   skills: string[];
-  availability: string;
   registeredAt?: string;
-  lastHeartbeat?: string;
   country?: string | null;
   fundingAddress?: string | null;
+  creditLine?: {
+    total_backing: number;
+    total_drawn: number;
+    available_credit: number;
+    blended_apr: number;
+    status: string;
+    backer_count: number;
+  } | null;
+  erc8004?: {
+    agentId: number;
+  } | null;
 }
 
 interface LendingMetricsResponse {
@@ -48,7 +57,6 @@ export async function agentCommand(address: string): Promise<void> {
 
     console.log(`=== Agent: ${profile.name} ===\n`);
     console.log(`  Address:      ${profile.address}`);
-    console.log(`  Availability: ${profile.availability}`);
     if (profile.bio) console.log(`  Bio:          ${profile.bio}`);
     if (profile.skills?.length)
       console.log(`  Skills:       ${profile.skills.join(", ")}`);
@@ -57,8 +65,23 @@ export async function agentCommand(address: string): Promise<void> {
       console.log(`  Funding Addr: ${profile.fundingAddress}`);
     if (profile.registeredAt)
       console.log(`  Registered:   ${profile.registeredAt}`);
-    if (profile.lastHeartbeat)
-      console.log(`  Last seen:    ${profile.lastHeartbeat}`);
+    // Show credit line summary if available
+    if (profile.creditLine) {
+      const cl = profile.creditLine;
+      console.log(`\n  Credit Line:`);
+      console.log(`    Total Backing:  ${cl.total_backing} USDC`);
+      console.log(`    Total Drawn:    ${cl.total_drawn} USDC`);
+      console.log(`    Available:      ${cl.available_credit} USDC`);
+      console.log(`    Blended APR:    ${cl.blended_apr.toFixed(2)}%`);
+      console.log(`    Status:         ${cl.status}`);
+      console.log(`    Backers:        ${cl.backer_count}`);
+    }
+
+    // Show ERC-8004 agent ID if registered
+    if (profile.erc8004) {
+      console.log(`\n  ERC-8004:`);
+      console.log(`    Agent ID:       ${profile.erc8004.agentId}`);
+    }
 
     // Fetch lending metrics
     try {

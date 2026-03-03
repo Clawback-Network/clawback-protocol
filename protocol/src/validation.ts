@@ -133,20 +133,6 @@ export const registerPayloadSchema = z.object({
   agentCard: agentCardSchema,
 });
 
-/** Heartbeat request schema */
-export const heartbeatPayloadSchema = z.object({
-  address: z.string().min(1),
-  timestamp: z.number().int(),
-  signature: z.string().min(1),
-  telemetry: z
-    .object({
-      messagesHandled: z.number().optional(),
-      uptime: z.number().optional(),
-      messagesSent: z.number().int().min(0).optional(),
-      country: z.string().length(2).toUpperCase().optional(),
-    })
-    .optional(),
-});
 
 /** Contact schema */
 export const contactSchema = z.object({
