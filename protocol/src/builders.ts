@@ -1,18 +1,8 @@
-/** Convenience builders for A2A messages, Agent Cards, skills, and lending */
+/** Convenience builders for A2A messages, Agent Cards, and skills */
 
 import { randomUUID } from "node:crypto";
-import type {
-  TextPart,
-  DataPart,
-  Message,
-  AgentCard,
-  AgentSkill,
-  SendMessageRequest,
-  GetTaskRequest,
-  CancelTaskRequest,
-} from "@a2a-js/sdk";
+import type { TextPart, Message, AgentCard, AgentSkill } from "@a2a-js/sdk";
 import { A2A_PROTOCOL_VERSION, CLAWBACK_VERSION } from "./types.js";
-import type { LendingAction, LendingMessage } from "./lending-types.js";
 
 /** Create a TextPart */
 export function textPart(text: string): TextPart {
@@ -39,46 +29,7 @@ export function createMessage(
   };
 }
 
-/** Wrap a Message in a JSON-RPC `message/send` request */
-export function createSendMessageRequest(
-  message: Message,
-  id?: string | number,
-): SendMessageRequest {
-  return {
-    jsonrpc: "2.0",
-    id: id ?? randomUUID(),
-    method: "message/send",
-    params: { message },
-  };
-}
-
-/** Create a JSON-RPC `tasks/get` request */
-export function createGetTaskRequest(
-  taskId: string,
-  id?: string | number,
-): GetTaskRequest {
-  return {
-    jsonrpc: "2.0",
-    id: id ?? randomUUID(),
-    method: "tasks/get",
-    params: { id: taskId },
-  };
-}
-
-/** Create a JSON-RPC `tasks/cancel` request */
-export function createCancelTaskRequest(
-  taskId: string,
-  id?: string | number,
-): CancelTaskRequest {
-  return {
-    jsonrpc: "2.0",
-    id: id ?? randomUUID(),
-    method: "tasks/cancel",
-    params: { id: taskId },
-  };
-}
-
-/** Build a ClawBack AgentCard with XMTP transport */
+/** Build a ClawBack AgentCard */
 export function buildClawBackAgentCard(
   address: string,
   name: string,
@@ -89,7 +40,7 @@ export function buildClawBackAgentCard(
   const card: AgentCard = {
     name,
     description,
-    url: `xmtp://${address}`,
+    url: `clawback://${address}`,
     version: CLAWBACK_VERSION,
     protocolVersion: A2A_PROTOCOL_VERSION,
     skills,
@@ -100,7 +51,6 @@ export function buildClawBackAgentCard(
     },
     defaultInputModes: ["text/plain"],
     defaultOutputModes: ["text/plain"],
-    preferredTransport: "XMTP",
   };
   if (options?.iconUrl) {
     (card as unknown as Record<string, unknown>).iconUrl = options.iconUrl;
@@ -112,6 +62,30 @@ export function buildClawBackAgentCard(
   return card;
 }
 
+/** Build a ClawBack Credit Assessor AgentCard */
+export function buildCreditAssessorCard(
+  address: string,
+  name: string,
+  description: string,
+  options?: { iconUrl?: string; fundingAddress?: string },
+): AgentCard {
+  return buildClawBackAgentCard(
+    address,
+    name,
+    description,
+    [
+      {
+        id: "credit-assessment",
+        name: "Credit Assessment",
+        description:
+          "Evaluates agent creditworthiness using ERC-8004 reputation, on-chain history, and social signals to make backing decisions",
+        tags: ["credit", "assessment", "backing", "erc-8004"],
+      },
+    ],
+    options,
+  );
+}
+
 /** Build an AgentSkill */
 export function buildSkill(
   id: string,
@@ -120,37 +94,4 @@ export function buildSkill(
   tags: string[],
 ): AgentSkill {
   return { id, name, description, tags };
-}
-
-/** Build a DataPart that carries a lending action */
-export function buildLendingDataPart(
-  action: LendingAction,
-  payload: Record<string, unknown> = {},
-  loanId?: string,
-): DataPart {
-  const data: Record<string, unknown> = {
-    protocol: "clawback",
-    action,
-    payload,
-  };
-  if (loanId) {
-    data.loanId = loanId;
-  }
-  return {
-    kind: "data",
-    data,
-  };
-}
-
-/** Extract a LendingMessage from a DataPart, or null if not a lending action */
-export function extractLendingAction(part: DataPart): LendingMessage | null {
-  const data = part.data as Record<string, unknown>;
-  if (data.protocol === "clawback" && typeof data.action === "string") {
-    return {
-      action: data.action as LendingAction,
-      loanId: typeof data.loanId === "string" ? data.loanId : undefined,
-      payload: (data.payload as Record<string, unknown>) ?? {},
-    };
-  }
-  return null;
 }

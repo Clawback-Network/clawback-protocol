@@ -1,8 +1,7 @@
-import { createUser } from "@xmtp/agent-sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as crypto from "node:crypto";
 import { keccak256, toBytes } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { AgentIdentity } from "@clawback-network/protocol";
 
 const DEFAULT_CONFIG_DIR = path.join(process.env.HOME || "~", ".clawback");
@@ -26,7 +25,7 @@ export interface GenerateOptions {
  * Generate (or return existing) agent identity.
  *
  * Idempotent by default: if identity.json already exists, returns it without
- * overwriting. Pass `force: true` to regenerate (also deletes xmtp.db).
+ * overwriting. Pass `force: true` to regenerate.
  *
  * Supports deterministic generation via `options.seed` or the `CLAWBACK_SEED`
  * env var — same seed always produces the same identity.
@@ -44,28 +43,18 @@ export function generateIdentity(
     if (existing) return existing;
   }
 
-  // When forcing regeneration, clean up stale XMTP state
-  if (options?.force) {
-    for (const file of ["xmtp.db", "xmtp.db-shm", "xmtp.db-wal"]) {
-      const p = path.join(dir, file);
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    }
-  }
-
   // Derive key from seed (deterministic) or generate random
   const seedString = options?.seed || process.env.CLAWBACK_SEED;
-  const user = seedString
-    ? createUser(keccak256(toBytes(seedString)))
-    : createUser();
-
-  const xmtpEnv = process.env.CLAWBACK_XMTP_ENV || "production";
+  const key = seedString
+    ? keccak256(toBytes(seedString))
+    : generatePrivateKey();
+  const account = privateKeyToAccount(key as `0x${string}`);
 
   const identity: AgentIdentity = {
     version: 1,
-    address: user.account.address,
-    publicKey: user.key,
+    address: account.address,
+    publicKey: key,
     createdAt: new Date().toISOString(),
-    xmtpEnv,
   };
 
   fs.writeFileSync(
@@ -73,11 +62,8 @@ export function generateIdentity(
     JSON.stringify(identity, null, 2),
   );
 
-  // Generate XMTP DB encryption key if not present
-  ensureEncryptionKey(dir);
-
   // Save the private key separately (not in identity.json)
-  fs.writeFileSync(path.join(dir, "wallet-key"), user.key);
+  fs.writeFileSync(path.join(dir, "wallet-key"), key);
 
   return identity;
 }
@@ -120,47 +106,4 @@ export function loadWalletKey(configDir?: string): string | null {
   }
 
   return fs.readFileSync(keyPath, "utf-8").trim();
-}
-
-/**
- * Ensure XMTP DB encryption key exists in the config directory .env file.
- */
-function ensureEncryptionKey(configDir: string): void {
-  const envPath = path.join(configDir, ".env");
-  let envContent = "";
-
-  if (fs.existsSync(envPath)) {
-    envContent = fs.readFileSync(envPath, "utf-8");
-    if (
-      envContent.includes("XMTP_DB_ENCRYPTION_KEY=") &&
-      !envContent.includes("XMTP_DB_ENCRYPTION_KEY=\n")
-    ) {
-      return; // Key already set
-    }
-  }
-
-  const key = crypto.randomBytes(32).toString("hex");
-  const line = `XMTP_DB_ENCRYPTION_KEY=${key}\n`;
-
-  if (envContent.includes("XMTP_DB_ENCRYPTION_KEY=")) {
-    envContent = envContent.replace(/XMTP_DB_ENCRYPTION_KEY=\n?/, line);
-  } else {
-    envContent += line;
-  }
-
-  fs.writeFileSync(envPath, envContent);
-}
-
-/**
- * Load the XMTP DB encryption key from the config .env.
- */
-export function loadEncryptionKey(configDir?: string): string | null {
-  const dir = configDir || getConfigDir();
-  const envPath = path.join(dir, ".env");
-
-  if (!fs.existsSync(envPath)) return null;
-
-  const content = fs.readFileSync(envPath, "utf-8");
-  const match = content.match(/XMTP_DB_ENCRYPTION_KEY=(.+)/);
-  return match ? match[1].trim() : null;
 }

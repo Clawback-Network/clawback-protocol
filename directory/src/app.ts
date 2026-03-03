@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { agentsRouter } from "./routes/agents.js";
 import { statsRouter } from "./routes/stats.js";
 import { lendingRouter } from "./routes/lending.js";
+import { creditRouter } from "./routes/credit.js";
 import type { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
 
@@ -21,6 +22,7 @@ app.use(express.json({ limit: "50kb" }));
 app.use("/agents", agentsRouter);
 app.use("/stats", statsRouter);
 app.use("/lending", lendingRouter);
+app.use("/credit", creditRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

@@ -6,7 +6,7 @@ export interface NotificationAttributes {
   loan_id: string;
   agent_addr: string;
   data: Record<string, unknown>;
-  created_at?: Date;
+  createdAt?: Date;
 }
 
 export class Notification extends Model<NotificationAttributes> {
@@ -15,7 +15,7 @@ export class Notification extends Model<NotificationAttributes> {
   declare loan_id: string;
   declare agent_addr: string;
   declare data: Record<string, unknown>;
-  declare readonly created_at: Date;
+  declare readonly createdAt: Date;
 }
 
 export function initNotificationModel(sequelize: Sequelize): void {

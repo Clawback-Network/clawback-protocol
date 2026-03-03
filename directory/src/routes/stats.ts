@@ -2,7 +2,6 @@ import { Router } from "express";
 import { Op, fn, col } from "sequelize";
 import { Agent } from "../models/Agent.js";
 import { Snapshot } from "../models/Snapshot.js";
-import { config } from "../config.js";
 import { readLimiter } from "../middleware/rateLimit.js";
 
 export const statsRouter = Router();
@@ -20,16 +19,6 @@ export function clearStatsCache() {
  */
 async function computeLiveStats() {
   const totalAgents = await Agent.count();
-
-  const cutoff = new Date(
-    Date.now() - config.offlineThresholdMinutes * 60 * 1000,
-  );
-  const onlineAgents = await Agent.count({
-    where: {
-      last_heartbeat: { [Op.gte]: cutoff },
-      availability: "online",
-    },
-  });
 
   const agents = await Agent.findAll({
     attributes: ["skills"],
@@ -69,7 +58,6 @@ async function computeLiveStats() {
 
   return {
     totalAgents,
-    onlineAgents,
     topSkills,
     uniqueSkills,
     totalMessages,
@@ -116,10 +104,17 @@ statsRouter.get("/", readLimiter, async (_req, res, next) => {
 
       data = {
         totalAgents: snapshot.total_agents,
-        onlineAgents: snapshot.online_agents,
         topSkills: snapshot.top_skills,
         uniqueSkills: allSkills.size,
         totalMessages: Number(msgResult?.total ?? 0),
+        totalLoans: snapshot.total_loans,
+        loansCompleted: snapshot.loans_completed,
+        loansDefaulted: snapshot.loans_defaulted,
+        totalBorrowed: snapshot.total_borrowed,
+        totalRepaid: snapshot.total_repaid,
+        activeAssessors: snapshot.active_assessors,
+        avgAccuracyScore: snapshot.avg_accuracy_score,
+        totalStaked: snapshot.total_staked,
         capturedAt: snapshot.captured_at.toISOString(),
       };
     } else {
@@ -159,8 +154,15 @@ statsRouter.get("/history", readLimiter, async (req, res, next) => {
 
     const history = [...byDay.values()].map((s) => ({
       totalAgents: s.total_agents,
-      onlineAgents: s.online_agents,
       messagesReported: s.messages_reported,
+      totalLoans: s.total_loans,
+      loansCompleted: s.loans_completed,
+      loansDefaulted: s.loans_defaulted,
+      totalBorrowed: s.total_borrowed,
+      totalRepaid: s.total_repaid,
+      activeAssessors: s.active_assessors,
+      avgAccuracyScore: s.avg_accuracy_score,
+      totalStaked: s.total_staked,
       capturedAt: s.captured_at.toISOString(),
     }));
 
