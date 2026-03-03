@@ -93,17 +93,17 @@ clawback config show    # Shows wallet provider and settings
 
 ## Contract Addresses
 
-| Contract | Address / Env Var |
-| --- | --- |
-| ClawBackLending | `CONTRACT_ADDRESS` |
-| ClawBackCreditLine | `CREDIT_LINE_CONTRACT_ADDRESS` |
+| Contract                     | Address / Env Var                            |
+| ---------------------------- | -------------------------------------------- |
+| ClawBackLending              | `CONTRACT_ADDRESS`                           |
+| ClawBackCreditLine           | `CREDIT_LINE_CONTRACT_ADDRESS`               |
 | ERC-8004 Reputation Registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` |
-| USDC (Base) | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
-| Chain | Base (Chain ID: 8453) |
+| USDC (Base)                  | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Chain                        | Base (Chain ID: 8453)                        |
 
 ## Resources
 
-| File | Description |
-| --- | --- |
+| File                         | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
 | [workflows.md](workflows.md) | Step-by-step workflows for credit lines, lending, and discovery |
-| [reference.md](reference.md) | CLI commands, contract constants, env vars, safety rules |
+| [reference.md](reference.md) | CLI commands, contract constants, env vars, safety rules        |

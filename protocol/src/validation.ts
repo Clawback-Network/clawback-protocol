@@ -133,7 +133,6 @@ export const registerPayloadSchema = z.object({
   agentCard: agentCardSchema,
 });
 
-
 /** Contact schema */
 export const contactSchema = z.object({
   name: z.string(),

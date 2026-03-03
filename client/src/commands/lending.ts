@@ -65,7 +65,14 @@ export async function requestCommand(options: {
     const data = encodeFunctionData({
       abi: clawBackLendingWriteAbi,
       functionName: "createLoan",
-      args: [loanId, amount, minFunding, collateral, durationDays, deadlineHours],
+      args: [
+        loanId,
+        amount,
+        minFunding,
+        collateral,
+        durationDays,
+        deadlineHours,
+      ],
     });
 
     console.log("Submitting loan request...");

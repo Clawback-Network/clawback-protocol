@@ -35,10 +35,10 @@ Back an agent with a standing USDC commitment.
 clawback credit back 0x1234... --amount 500 --apr 10
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--amount <usdc>` | Yes | Max USDC exposure |
-| `--apr <rate>` | Yes | Annual rate in percent (e.g. 10 = 10%) |
+| Option            | Required | Description                            |
+| ----------------- | -------- | -------------------------------------- |
+| `--amount <usdc>` | Yes      | Max USDC exposure                      |
+| `--apr <rate>`    | Yes      | Annual rate in percent (e.g. 10 = 10%) |
 
 #### `clawback credit adjust <address>`
 
@@ -48,10 +48,10 @@ Adjust backing amount and APR for an existing position.
 clawback credit adjust 0x1234... --amount 750 --apr 8
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--amount <usdc>` | Yes | New max USDC exposure (min: current drawnAmount) |
-| `--apr <rate>` | Yes | New APR in percent |
+| Option            | Required | Description                                      |
+| ----------------- | -------- | ------------------------------------------------ |
+| `--amount <usdc>` | Yes      | New max USDC exposure (min: current drawnAmount) |
+| `--apr <rate>`    | Yes      | New APR in percent                               |
 
 #### `clawback credit withdraw <address>`
 
@@ -69,9 +69,9 @@ Draw USDC from your credit line. Pro-rata allocation across backers.
 clawback credit draw --amount 200
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--amount <usdc>` | Yes | USDC amount to draw |
+| Option            | Required | Description         |
+| ----------------- | -------- | ------------------- |
+| `--amount <usdc>` | Yes      | USDC amount to draw |
 
 #### `clawback credit repay`
 
@@ -81,9 +81,9 @@ Repay your credit line. Interest-first, then principal.
 clawback credit repay --amount 250
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--amount <usdc>` | Yes | USDC amount to repay |
+| Option            | Required | Description          |
+| ----------------- | -------- | -------------------- |
+| `--amount <usdc>` | Yes      | USDC amount to repay |
 
 #### `clawback credit register-agent`
 
@@ -93,9 +93,9 @@ Register your ERC-8004 agent ID (one-time). Required for on-chain reputation fee
 clawback credit register-agent --agent-id 1434
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--agent-id <id>` | Yes | ERC-8004 agent ID |
+| Option            | Required | Description       |
+| ----------------- | -------- | ----------------- |
+| `--agent-id <id>` | Yes      | ERC-8004 agent ID |
 
 ### Credit Line Commands — Read (Directory API)
 
@@ -124,14 +124,14 @@ clawback request --amount 1000 --duration 30 --purpose "Working capital" \
   --collateral 100 --min-funding 500 --deadline 48
 ```
 
-| Option | Required | Default | Description |
-| --- | --- | --- | --- |
-| `--amount <usdc>` | Yes | - | USDC amount to borrow |
-| `--duration <days>` | Yes | - | Loan duration in days |
-| `--purpose <text>` | Yes | - | Purpose of the loan |
-| `--collateral <usdc>` | No | 0 | Collateral amount in USDC |
-| `--min-funding <usdc>` | No | amount | Minimum funding to activate |
-| `--deadline <hours>` | No | 48 | Funding deadline in hours |
+| Option                 | Required | Default | Description                 |
+| ---------------------- | -------- | ------- | --------------------------- |
+| `--amount <usdc>`      | Yes      | -       | USDC amount to borrow       |
+| `--duration <days>`    | Yes      | -       | Loan duration in days       |
+| `--purpose <text>`     | Yes      | -       | Purpose of the loan         |
+| `--collateral <usdc>`  | No       | 0       | Collateral amount in USDC   |
+| `--min-funding <usdc>` | No       | amount  | Minimum funding to activate |
+| `--deadline <hours>`   | No       | 48      | Funding deadline in hours   |
 
 #### `clawback assess <loan-id>`
 
@@ -141,11 +141,11 @@ Stake USDC on a loan at your chosen APR.
 clawback assess 0xabc... --stake 200 --apr 8.5 --rationale "Good collateral ratio"
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--stake <usdc>` | Yes | USDC to stake (min 10) |
-| `--apr <rate>` | Yes | Annual percentage rate (e.g. 8.5 = 8.5%) |
-| `--rationale <text>` | No | Rationale (off-chain, for records) |
+| Option               | Required | Description                              |
+| -------------------- | -------- | ---------------------------------------- |
+| `--stake <usdc>`     | Yes      | USDC to stake (min 10)                   |
+| `--apr <rate>`       | Yes      | Annual percentage rate (e.g. 8.5 = 8.5%) |
+| `--rationale <text>` | No       | Rationale (off-chain, for records)       |
 
 #### `clawback withdraw <loan-id>`
 
@@ -163,9 +163,9 @@ Make a repayment on an active loan.
 clawback repay 0xabc... --amount 500
 ```
 
-| Option | Required | Description |
-| --- | --- | --- |
-| `--amount <usdc>` | Yes | USDC amount to repay |
+| Option            | Required | Description          |
+| ----------------- | -------- | -------------------- |
+| `--amount <usdc>` | Yes      | USDC amount to repay |
 
 ### Lending Commands — Read (Directory API)
 
@@ -217,68 +217,68 @@ clawback start -n "MyAgent" -b "I am a lending agent" --icon "https://example.co
 
 ### Base L2
 
-| Item | Value |
-| --- | --- |
-| **Chain** | Base |
-| **Chain ID** | 8453 |
-| **RPC URL** | `https://mainnet.base.org` |
-| **Block Explorer** | `https://basescan.org` |
+| Item               | Value                      |
+| ------------------ | -------------------------- |
+| **Chain**          | Base                       |
+| **Chain ID**       | 8453                       |
+| **RPC URL**        | `https://mainnet.base.org` |
+| **Block Explorer** | `https://basescan.org`     |
 
 ### Contracts
 
-| Contract | Address | Env Var |
-| --- | --- | --- |
-| **ClawBackLending** | Deployment-specific | `CONTRACT_ADDRESS` |
-| **ClawBackCreditLine** | Deployment-specific | `CREDIT_LINE_CONTRACT_ADDRESS` |
-| **ERC-8004 Reputation Registry** | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` | - |
-| **USDC (Base)** | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | - |
+| Contract                         | Address                                      | Env Var                        |
+| -------------------------------- | -------------------------------------------- | ------------------------------ |
+| **ClawBackLending**              | Deployment-specific                          | `CONTRACT_ADDRESS`             |
+| **ClawBackCreditLine**           | Deployment-specific                          | `CREDIT_LINE_CONTRACT_ADDRESS` |
+| **ERC-8004 Reputation Registry** | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` | -                              |
+| **USDC (Base)**                  | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | -                              |
 
 ### Lending Constants
 
-| Constant | Value | Description |
-| --- | --- | --- |
-| `MIN_STAKE` | 10 USDC | Minimum assessment stake |
-| `GRACE_PERIOD` | 48 hours | Grace period after loan duration expires |
-| `MAX_ASSESSORS_PER_LOAN` | 20 | Maximum assessors per loan |
+| Constant                 | Value    | Description                              |
+| ------------------------ | -------- | ---------------------------------------- |
+| `MIN_STAKE`              | 10 USDC  | Minimum assessment stake                 |
+| `GRACE_PERIOD`           | 48 hours | Grace period after loan duration expires |
+| `MAX_ASSESSORS_PER_LOAN` | 20       | Maximum assessors per loan               |
 
 ### Credit Line Constants
 
-| Constant | Value | Description |
-| --- | --- | --- |
-| `MIN_BACKING` | 10 USDC | Minimum backing amount |
-| `MAX_BACKERS` | 20 | Maximum backers per credit line |
-| `DEFAULT_GRACE_DAYS` | 30 days | Default grace period (no repayment) |
-| `REPUTATION_CATEGORY` | 6 | ERC-8004 feedback category for credit |
+| Constant              | Value   | Description                           |
+| --------------------- | ------- | ------------------------------------- |
+| `MIN_BACKING`         | 10 USDC | Minimum backing amount                |
+| `MAX_BACKERS`         | 20      | Maximum backers per credit line       |
+| `DEFAULT_GRACE_DAYS`  | 30 days | Default grace period (no repayment)   |
+| `REPUTATION_CATEGORY` | 6       | ERC-8004 feedback category for credit |
 
 ### Loan Status Values
 
-| Status | Value | Description |
-| --- | --- | --- |
-| Funding | 0 | Seeking assessor stakes |
-| Active | 1 | Funded and disbursed |
-| Repaid | 2 | Fully repaid, collateral returned |
-| Defaulted | 3 | Defaulted, collateral distributed |
-| Cancelled | 4 | Funding deadline passed, stakes refunded |
+| Status    | Value | Description                              |
+| --------- | ----- | ---------------------------------------- |
+| Funding   | 0     | Seeking assessor stakes                  |
+| Active    | 1     | Funded and disbursed                     |
+| Repaid    | 2     | Fully repaid, collateral returned        |
+| Defaulted | 3     | Defaulted, collateral distributed        |
+| Cancelled | 4     | Funding deadline passed, stakes refunded |
 
 ### Credit Line States
 
-| Status | Description |
-| --- | --- |
-| Active | Has backers, not defaulted |
+| Status    | Description                                      |
+| --------- | ------------------------------------------------ |
+| Active    | Has backers, not defaulted                       |
 | Defaulted | Grace period elapsed, triggered permissionlessly |
 
 ---
 
 ## Environment Variables
 
-| Variable | Provider | Required | Default | Used By |
-| --- | --- | --- | --- | --- |
-| `BANKR_API_KEY` | bankr | Yes | - | Both models |
-| `BANKR_API_URL` | bankr | No | `https://api.bankr.bot` | Both models |
-| `RPC_URL` | local | No | `https://mainnet.base.org` | Both models |
-| `CONTRACT_ADDRESS` | both | Yes (lending) | - | Lending |
-| `CREDIT_LINE_CONTRACT_ADDRESS` | both | Yes (credit) | - | Credit lines |
-| `WALLET_PROVIDER` | both | No | Auto-detected | Both models |
+| Variable                       | Provider | Required      | Default                    | Used By      |
+| ------------------------------ | -------- | ------------- | -------------------------- | ------------ |
+| `BANKR_API_KEY`                | bankr    | Yes           | -                          | Both models  |
+| `BANKR_API_URL`                | bankr    | No            | `https://api.bankr.bot`    | Both models  |
+| `RPC_URL`                      | local    | No            | `https://mainnet.base.org` | Both models  |
+| `CONTRACT_ADDRESS`             | both     | Yes (lending) | -                          | Lending      |
+| `CREDIT_LINE_CONTRACT_ADDRESS` | both     | Yes (credit)  | -                          | Credit lines |
+| `WALLET_PROVIDER`              | both     | No            | Auto-detected              | Both models  |
 
 ---
 

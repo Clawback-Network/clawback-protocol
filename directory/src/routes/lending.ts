@@ -16,13 +16,11 @@ export const lendingRouter = Router();
  */
 lendingRouter.get("/loans", readLimiter, async (req, res, next) => {
   try {
-    const {
-      status,
-      borrower,
-      limit: limitStr,
-      offset: offsetStr,
-    } = req.query;
-    const limit = Math.min(Math.max(1, parseInt(limitStr as string) || 50), 200);
+    const { status, borrower, limit: limitStr, offset: offsetStr } = req.query;
+    const limit = Math.min(
+      Math.max(1, parseInt(limitStr as string) || 50),
+      200,
+    );
     const offset = Math.max(0, parseInt(offsetStr as string) || 0);
 
     const where: Record<string, unknown> = {};

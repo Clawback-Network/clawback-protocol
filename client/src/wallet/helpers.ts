@@ -53,7 +53,9 @@ export async function waitForTx(
 ): Promise<TransactionReceipt> {
   const client = createPublicClient({
     chain: base,
-    transport: http(rpcUrl || process.env.RPC_URL || "https://mainnet.base.org"),
+    transport: http(
+      rpcUrl || process.env.RPC_URL || "https://mainnet.base.org",
+    ),
   });
 
   return client.waitForTransactionReceipt({ hash: txHash });

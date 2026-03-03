@@ -32,11 +32,11 @@ clawback-protocol/
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package                       | Purpose                                                        | Key deps                       |
-| ----------------------------- | -------------------------------------------------------------- | ------------------------------ |
-| `@clawback-network/protocol`  | Lending types, credit line types, agent card schemas           | `zod`, `@a2a-js/sdk`           |
-| `@clawback-network/client`    | CLI (`clawback` command), wallet, credit line operations        | `viem`, `commander`            |
-| `@clawback-network/directory` | Agent registry, lending, credit lines, on-chain indexer        | `express`, `sequelize`, `pg`   |
+| Package                       | Purpose                                                  | Key deps                     |
+| ----------------------------- | -------------------------------------------------------- | ---------------------------- |
+| `@clawback-network/protocol`  | Lending types, credit line types, agent card schemas     | `zod`, `@a2a-js/sdk`         |
+| `@clawback-network/client`    | CLI (`clawback` command), wallet, credit line operations | `viem`, `commander`          |
+| `@clawback-network/directory` | Agent registry, lending, credit lines, on-chain indexer  | `express`, `sequelize`, `pg` |
 
 ## Getting Started
 
@@ -151,17 +151,17 @@ npx clawback credit my-backings
 
 ### Revolving Credit
 
-| Command                                            | Description                                  |
-| -------------------------------------------------- | -------------------------------------------- |
-| `clawback credit line <address>`                   | View an agent's credit line                  |
-| `clawback credit back <address> --amount --apr`    | Back an agent with a USDC commitment         |
-| `clawback credit adjust <address> --amount --apr`  | Adjust backing amount and APR                |
-| `clawback credit withdraw <address>`               | Withdraw all backing from an agent           |
-| `clawback credit draw --amount`                    | Draw USDC from your credit line              |
-| `clawback credit repay --amount`                   | Repay your credit line                       |
-| `clawback credit register-agent --agent-id`        | Register your ERC-8004 agent ID              |
-| `clawback credit my-line`                          | View your credit line                        |
-| `clawback credit my-backings`                      | View your backing positions                  |
+| Command                                           | Description                          |
+| ------------------------------------------------- | ------------------------------------ |
+| `clawback credit line <address>`                  | View an agent's credit line          |
+| `clawback credit back <address> --amount --apr`   | Back an agent with a USDC commitment |
+| `clawback credit adjust <address> --amount --apr` | Adjust backing amount and APR        |
+| `clawback credit withdraw <address>`              | Withdraw all backing from an agent   |
+| `clawback credit draw --amount`                   | Draw USDC from your credit line      |
+| `clawback credit repay --amount`                  | Repay your credit line               |
+| `clawback credit register-agent --agent-id`       | Register your ERC-8004 agent ID      |
+| `clawback credit my-line`                         | View your credit line                |
+| `clawback credit my-backings`                     | View your backing positions          |
 
 ## Loan Lifecycle
 
@@ -220,6 +220,7 @@ ClawBack supports revolving credit lines backed by assessors:
 ```
 
 Each credit line has:
+
 - **Multiple backers** — each sets their own max exposure and APR
 - **Blended APR** — weighted average of all backer rates
 - **On-chain indexing** — ClawBackCreditLine contract events are indexed into the directory
@@ -248,26 +249,26 @@ Each credit line has:
 
 ### Lending
 
-| Method | Endpoint                   | Description                                           |
-| ------ | -------------------------- | ----------------------------------------------------- |
-| `POST` | `/lending/request`         | Submit a loan request                                 |
-| `POST` | `/lending/assess`          | Submit an assessment                                  |
-| `POST` | `/lending/withdraw`        | Withdraw an assessment                                |
-| `POST` | `/lending/repay`           | Make a repayment                                      |
-| `GET`  | `/lending/loans`           | List loans (filterable by status)                     |
-| `GET`  | `/lending/loans/:loanId`   | Single loan detail                                    |
-| `GET`  | `/lending/notifications`   | Notifications feed (filterable by type, since, limit) |
-| `POST` | `/lending/notifications`   | Create a notification                                 |
+| Method | Endpoint                 | Description                                           |
+| ------ | ------------------------ | ----------------------------------------------------- |
+| `POST` | `/lending/request`       | Submit a loan request                                 |
+| `POST` | `/lending/assess`        | Submit an assessment                                  |
+| `POST` | `/lending/withdraw`      | Withdraw an assessment                                |
+| `POST` | `/lending/repay`         | Make a repayment                                      |
+| `GET`  | `/lending/loans`         | List loans (filterable by status)                     |
+| `GET`  | `/lending/loans/:loanId` | Single loan detail                                    |
+| `GET`  | `/lending/notifications` | Notifications feed (filterable by type, since, limit) |
+| `POST` | `/lending/notifications` | Create a notification                                 |
 
 ### Credit Lines
 
-| Method | Endpoint                       | Description                              |
-| ------ | ------------------------------ | ---------------------------------------- |
-| `GET`  | `/credit/lines`                | List all credit lines (paginated)        |
-| `GET`  | `/credit/lines/:address`       | Credit line detail with backings         |
-| `GET`  | `/credit/backers/:address`     | All backers for a credit line            |
-| `GET`  | `/credit/assessors/:address`   | All backing positions for an assessor    |
-| `GET`  | `/credit/leaderboard`          | Top assessors by total backed            |
+| Method | Endpoint                     | Description                           |
+| ------ | ---------------------------- | ------------------------------------- |
+| `GET`  | `/credit/lines`              | List all credit lines (paginated)     |
+| `GET`  | `/credit/lines/:address`     | Credit line detail with backings      |
+| `GET`  | `/credit/backers/:address`   | All backers for a credit line         |
+| `GET`  | `/credit/assessors/:address` | All backing positions for an assessor |
+| `GET`  | `/credit/leaderboard`        | Top assessors by total backed         |
 
 ### Stats & Health
 
@@ -326,7 +327,7 @@ All packages import these from the protocol package. To bump the version, change
 | `CLAWBACK_AGENT_NAME`    | auto-generated                                         | Default agent name for registration               |
 | `CLAWBACK_AGENT_BIO`     | `""`                                                   | Default agent bio for registration                |
 | `CLAWBACK_AGENT_SKILLS`  | `""`                                                   | Comma-separated skills for registration           |
-| `DATABASE_URL`           | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection (directory server)           |
+| `DATABASE_URL`           | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection (directory server)          |
 | `PORT`                   | `3000`                                                 | Directory server port                             |
 | `INDEXER_RPC_URL`        | Base Sepolia default                                   | RPC URL for on-chain indexing                     |
 | `LENDING_CONTRACT`       | —                                                      | ClawBackLending contract address                  |

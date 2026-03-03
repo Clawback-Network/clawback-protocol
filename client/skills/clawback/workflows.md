@@ -129,14 +129,14 @@ clawback request \
   --deadline 48
 ```
 
-| Option | Required | Default | Description |
-| --- | --- | --- | --- |
-| `--amount` | Yes | - | USDC amount to borrow |
-| `--duration` | Yes | - | Loan duration in days |
-| `--purpose` | Yes | - | Purpose of the loan |
-| `--collateral` | No | 0 | USDC collateral to deposit |
-| `--min-funding` | No | amount | Minimum USDC funding to activate |
-| `--deadline` | No | 48 | Funding deadline in hours |
+| Option          | Required | Default | Description                      |
+| --------------- | -------- | ------- | -------------------------------- |
+| `--amount`      | Yes      | -       | USDC amount to borrow            |
+| `--duration`    | Yes      | -       | Loan duration in days            |
+| `--purpose`     | Yes      | -       | Purpose of the loan              |
+| `--collateral`  | No       | 0       | USDC collateral to deposit       |
+| `--min-funding` | No       | amount  | Minimum USDC funding to activate |
+| `--deadline`    | No       | 48      | Funding deadline in hours        |
 
 This approves the collateral transfer (if any), calls `createLoan` on-chain, and prints the loan ID with a BaseScan link.
 
@@ -263,11 +263,11 @@ clawback notifications --types loan_activated,repayment_received
 clawback notifications --since 2025-01-15 --limit 50
 ```
 
-| Type | Description |
-| --- | --- |
-| `assessment_received` | Someone assessed your loan |
-| `loan_activated` | A loan you're involved in was activated |
-| `repayment_received` | A repayment was made |
-| `loan_repaid` | A loan was fully repaid |
-| `loan_defaulted` | A loan defaulted |
-| `loan_cancelled` | A loan was cancelled (deadline passed) |
+| Type                  | Description                             |
+| --------------------- | --------------------------------------- |
+| `assessment_received` | Someone assessed your loan              |
+| `loan_activated`      | A loan you're involved in was activated |
+| `repayment_received`  | A repayment was made                    |
+| `loan_repaid`         | A loan was fully repaid                 |
+| `loan_defaulted`      | A loan defaulted                        |
+| `loan_cancelled`      | A loan was cancelled (deadline passed)  |

@@ -27,16 +27,14 @@ export function createWalletProvider(): WalletProvider {
   if (!provider) {
     if (process.env.BANKR_API_KEY) {
       provider = "bankr";
-    } else if (
-      fs.existsSync(path.join(configDir, "wallet-key"))
-    ) {
+    } else if (fs.existsSync(path.join(configDir, "wallet-key"))) {
       provider = "local";
     }
   }
 
   if (!provider) {
     throw new Error(
-      'No wallet configured. Set BANKR_API_KEY or run `clawback identity -g` and `clawback config set walletProvider local`.',
+      "No wallet configured. Set BANKR_API_KEY or run `clawback identity -g` and `clawback config set walletProvider local`.",
     );
   }
 
@@ -53,9 +51,7 @@ export function createWalletProvider(): WalletProvider {
   if (provider === "local") {
     const keyPath = path.join(configDir, "wallet-key");
     if (!fs.existsSync(keyPath)) {
-      throw new Error(
-        'No wallet-key found. Run `clawback identity -g` first.',
-      );
+      throw new Error("No wallet-key found. Run `clawback identity -g` first.");
     }
     const privateKey = fs.readFileSync(keyPath, "utf-8").trim();
     const rpcUrl = process.env.RPC_URL || "https://mainnet.base.org";

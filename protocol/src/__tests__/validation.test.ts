@@ -487,4 +487,3 @@ describe("clawBackNotificationSchema", () => {
     expect(result.loan_id).toBe("loan-001");
   });
 });
-
