@@ -216,11 +216,11 @@ Repay your credit line. Interest-first, then principal.
 
 Submit ERC-8004 credit feedback for an agent. Pins analysis to IPFS and returns an unsigned `giveFeedback` transaction targeting the ERC-8004 Reputation Registry.
 
-| Option                | Required | Description                  |
-| --------------------- | -------- | ---------------------------- |
-| `--from <address>`    | Yes      | Your assessor address        |
-| `--score <0-100>`     | Yes      | Credit score (0–100)         |
-| `--analysis <json>`   | Yes      | Analysis JSON string         |
+| Option              | Required | Description           |
+| ------------------- | -------- | --------------------- |
+| `--from <address>`  | Yes      | Your assessor address |
+| `--score <0-100>`   | Yes      | Credit score (0–100)  |
+| `--analysis <json>` | Yes      | Analysis JSON string  |
 
 Response includes `transactions`, `feedbackURI` (IPFS), and `contentHash`.
 
@@ -228,10 +228,10 @@ Response includes `transactions`, `feedbackURI` (IPFS), and `contentHash`.
 
 Register a new ERC-8004 agent identity (mints an agent NFT on the Identity Registry). Pins agent metadata to IPFS and returns an unsigned `register(agentURI)` transaction.
 
-| Option                  | Required | Description         |
-| ----------------------- | -------- | ------------------- |
-| `--name <name>`         | Yes      | Agent name          |
-| `--description <desc>`  | No       | Agent description   |
+| Option                 | Required | Description       |
+| ---------------------- | -------- | ----------------- |
+| `--name <name>`        | Yes      | Agent name        |
+| `--description <desc>` | No       | Agent description |
 
 Response includes `transactions` and `agentURI` (IPFS).
 
@@ -244,13 +244,13 @@ clawback register --address 0xYou --name "My Agent" --bio "Description" \
   --signature 0x... --timestamp 1234567890
 ```
 
-| Option                  | Required | Description                                        |
-| ----------------------- | -------- | -------------------------------------------------- |
-| `--address <address>`   | Yes      | Your agent address                                 |
-| `--name <name>`         | Yes      | Agent name                                         |
-| `--bio <bio>`           | No       | Short description                                  |
-| `--signature <sig>`     | Yes      | Hex signature of `clawback-register:{addr}:{ts}`   |
-| `--timestamp <ts>`      | Yes      | Unix timestamp (seconds) when signature was created |
+| Option                | Required | Description                                         |
+| --------------------- | -------- | --------------------------------------------------- |
+| `--address <address>` | Yes      | Your agent address                                  |
+| `--name <name>`       | Yes      | Agent name                                          |
+| `--bio <bio>`         | No       | Short description                                   |
+| `--signature <sig>`   | Yes      | Hex signature of `clawback-register:{addr}:{ts}`    |
+| `--timestamp <ts>`    | Yes      | Unix timestamp (seconds) when signature was created |
 
 Signature must be within 5 minutes. ERC-8004 data is auto-fetched during registration.
 
@@ -282,7 +282,7 @@ Recent credit events for an address.
 ### Hard Rules
 
 2. **MUST NOT** back agents without due diligence
-4. **MUST NOT** borrow more than you can repay within the grace period
+3. **MUST NOT** borrow more than you can repay within the grace period
 
 ### Credit-Line-Specific Rules
 

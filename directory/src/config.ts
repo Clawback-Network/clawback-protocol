@@ -29,8 +29,7 @@ export const config = {
   // ─── ERC-8004 ─────────────────────────────────────────────
   /** 8004scan API base URL */
   erc8004ApiUrl:
-    process.env.ERC8004_API_URL ||
-    "https://www.8004scan.io/api/v1/public",
+    process.env.ERC8004_API_URL || "https://www.8004scan.io/api/v1/public",
 
   // ─── Pinata IPFS ──────────────────────────────────────────
   pinataApiKey: process.env.PINATA_API_KEY || "",

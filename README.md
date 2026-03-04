@@ -30,8 +30,8 @@ clawback-protocol/
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package                       | Purpose                                     | Key deps                     |
-| ----------------------------- | ------------------------------------------- | ---------------------------- |
+| Package                       | Purpose                                      | Key deps                     |
+| ----------------------------- | -------------------------------------------- | ---------------------------- |
 | `@clawback-network/protocol`  | Credit types, validation, contract addresses | `zod`                        |
 | `@clawback-network/client`    | CLI (`clawback` command), credit operations  | `commander`                  |
 | `@clawback-network/directory` | Agent registry, credit indexer, tx builder   | `express`, `sequelize`, `pg` |
@@ -112,9 +112,7 @@ All write commands return **unsigned transaction payloads**:
 
 ```json
 {
-  "transactions": [
-    { "to": "0x...", "data": "0x..." }
-  ]
+  "transactions": [{ "to": "0x...", "data": "0x..." }]
 }
 ```
 
@@ -124,36 +122,36 @@ Sign and submit with your preferred wallet. USDC approval transactions are autom
 
 ### Registration & Discovery
 
-| Command                    | Description                               |
-| -------------------------- | ----------------------------------------- |
-| `clawback register`        | Register your agent with the directory    |
-| `clawback agents`          | Search directory for agents (`-q` search) |
+| Command                    | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| `clawback register`        | Register your agent with the directory      |
+| `clawback agents`          | Search directory for agents (`-q` search)   |
 | `clawback agent <address>` | Full agent profile + credit line + ERC-8004 |
 
 ### Credit Line (Read)
 
-| Command                            | Description                     |
-| ---------------------------------- | ------------------------------- |
-| `clawback credit line <address>`   | View credit line detail         |
-| `clawback credit backings <addr>`  | View backing positions          |
-| `clawback credit events <address>` | Recent credit events            |
+| Command                            | Description             |
+| ---------------------------------- | ----------------------- |
+| `clawback credit line <address>`   | View credit line detail |
+| `clawback credit backings <addr>`  | View backing positions  |
+| `clawback credit events <address>` | Recent credit events    |
 
 ### Credit Line (Write — returns unsigned tx payloads)
 
-| Command                                                       | Description                        |
-| ------------------------------------------------------------- | ---------------------------------- |
-| `clawback credit back <addr> --from --amount --apr`           | Back an agent with USDC commitment |
-| `clawback credit adjust <addr> --from --amount --apr`         | Adjust backing amount and APR      |
-| `clawback credit withdraw <addr> --from`                      | Withdraw all backing               |
-| `clawback credit draw --from --amount`                        | Draw USDC from your credit line    |
-| `clawback credit repay --from --amount`                       | Repay your credit line             |
+| Command                                               | Description                        |
+| ----------------------------------------------------- | ---------------------------------- |
+| `clawback credit back <addr> --from --amount --apr`   | Back an agent with USDC commitment |
+| `clawback credit adjust <addr> --from --amount --apr` | Adjust backing amount and APR      |
+| `clawback credit withdraw <addr> --from`              | Withdraw all backing               |
+| `clawback credit draw --from --amount`                | Draw USDC from your credit line    |
+| `clawback credit repay --from --amount`               | Repay your credit line             |
 
 ### ERC-8004 (Write — returns unsigned tx payloads)
 
-| Command                                                       | Description                             |
-| ------------------------------------------------------------- | --------------------------------------- |
-| `clawback credit register-8004 --name`                        | Register ERC-8004 agent identity        |
-| `clawback credit feedback <addr> --from --score --analysis`   | Submit credit feedback (pins to IPFS)   |
+| Command                                                     | Description                           |
+| ----------------------------------------------------------- | ------------------------------------- |
+| `clawback credit register-8004 --name`                      | Register ERC-8004 agent identity      |
+| `clawback credit feedback <addr> --from --score --analysis` | Submit credit feedback (pins to IPFS) |
 
 ## Credit Line Lifecycle
 
@@ -194,12 +192,12 @@ Each credit line has:
 
 ### Agents
 
-| Method | Endpoint                            | Description                         |
-| ------ | ----------------------------------- | ----------------------------------- |
-| `POST` | `/agents/register`                  | Register agent (signature required) |
-| `GET`  | `/agents/search?q=`                 | Search agents by name/bio           |
-| `GET`  | `/agents/:address`                  | Agent profile + credit line + ERC-8004 |
-| `GET`  | `/agents/:address/erc8004/refresh`  | Re-fetch ERC-8004 data from 8004scan |
+| Method | Endpoint                           | Description                            |
+| ------ | ---------------------------------- | -------------------------------------- |
+| `POST` | `/agents/register`                 | Register agent (signature required)    |
+| `GET`  | `/agents/search?q=`                | Search agents by name/bio              |
+| `GET`  | `/agents/:address`                 | Agent profile + credit line + ERC-8004 |
+| `GET`  | `/agents/:address/erc8004/refresh` | Re-fetch ERC-8004 data from 8004scan   |
 
 ### Credit Lines (Read)
 
@@ -215,15 +213,15 @@ Each credit line has:
 
 ### Credit Lines (Write — unsigned tx payloads)
 
-| Method | Endpoint                     | Description                              |
-| ------ | ---------------------------- | ---------------------------------------- |
-| `POST` | `/credit/tx/back`            | Build backAgent tx (+ approve if needed) |
-| `POST` | `/credit/tx/adjust`          | Build adjustBacking tx                   |
-| `POST` | `/credit/tx/withdraw`        | Build withdrawBacking tx                 |
-| `POST` | `/credit/tx/draw`            | Build draw tx                            |
-| `POST` | `/credit/tx/repay`           | Build repay tx (+ approve if needed)     |
-| `POST` | `/credit/tx/feedback`        | Build giveFeedback tx (pins to IPFS)     |
-| `POST` | `/credit/tx/register-8004`   | Build register tx (pins to IPFS)         |
+| Method | Endpoint                   | Description                              |
+| ------ | -------------------------- | ---------------------------------------- |
+| `POST` | `/credit/tx/back`          | Build backAgent tx (+ approve if needed) |
+| `POST` | `/credit/tx/adjust`        | Build adjustBacking tx                   |
+| `POST` | `/credit/tx/withdraw`      | Build withdrawBacking tx                 |
+| `POST` | `/credit/tx/draw`          | Build draw tx                            |
+| `POST` | `/credit/tx/repay`         | Build repay tx (+ approve if needed)     |
+| `POST` | `/credit/tx/feedback`      | Build giveFeedback tx (pins to IPFS)     |
+| `POST` | `/credit/tx/register-8004` | Build register tx (pins to IPFS)         |
 
 ### Stats & Health
 
@@ -256,25 +254,25 @@ cd directory && docker compose up -d
 
 ### Client
 
-| Variable                 | Default                | Description            |
-| ------------------------ | ---------------------- | ---------------------- |
-| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000` | Directory server URL   |
+| Variable                 | Default                 | Description          |
+| ------------------------ | ----------------------- | -------------------- |
+| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000` | Directory server URL |
 
 ### Directory Server
 
-| Variable             | Default                                                | Description                       |
-| -------------------- | ------------------------------------------------------ | --------------------------------- |
-| `DATABASE_URL`       | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection             |
-| `PORT`               | `3000`                                                 | Server port                       |
-| `RPC_URL`            | —                                                      | Base L2 JSON-RPC URL (for indexer) |
-| `CHAIN_ID`           | `8453`                                                 | Chain ID for tx building          |
-| `INDEXER_START_BLOCK` | `0`                                                   | Block to start indexing from      |
-| `INDEXER_INTERVAL_MS` | `12000`                                               | Polling interval (~1 Base block)  |
-| `INDEXER_BATCH_SIZE`  | `2000`                                                | Max blocks per polling tick       |
-| `ERC8004_API_URL`    | `https://www.8004scan.io/api/v1/public`                | 8004scan API base URL             |
-| `PINATA_API_KEY`     | —                                                      | Pinata IPFS API key               |
-| `PINATA_SECRET_KEY`  | —                                                      | Pinata IPFS secret key            |
-| `NODE_ENV`           | `development`                                          | Node environment                  |
+| Variable              | Default                                                | Description                        |
+| --------------------- | ------------------------------------------------------ | ---------------------------------- |
+| `DATABASE_URL`        | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection              |
+| `PORT`                | `3000`                                                 | Server port                        |
+| `RPC_URL`             | —                                                      | Base L2 JSON-RPC URL (for indexer) |
+| `CHAIN_ID`            | `8453`                                                 | Chain ID for tx building           |
+| `INDEXER_START_BLOCK` | `0`                                                    | Block to start indexing from       |
+| `INDEXER_INTERVAL_MS` | `12000`                                                | Polling interval (~1 Base block)   |
+| `INDEXER_BATCH_SIZE`  | `2000`                                                 | Max blocks per polling tick        |
+| `ERC8004_API_URL`     | `https://www.8004scan.io/api/v1/public`                | 8004scan API base URL              |
+| `PINATA_API_KEY`      | —                                                      | Pinata IPFS API key                |
+| `PINATA_SECRET_KEY`   | —                                                      | Pinata IPFS secret key             |
+| `NODE_ENV`            | `development`                                          | Node environment                   |
 
 ## License
 

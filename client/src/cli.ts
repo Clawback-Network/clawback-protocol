@@ -31,8 +31,14 @@ program
   .requiredOption("--address <address>", "Your agent address")
   .requiredOption("--name <name>", "Agent name")
   .option("--bio <bio>", "Short description of your agent")
-  .requiredOption("--signature <sig>", "Hex signature proving address ownership")
-  .requiredOption("--timestamp <ts>", "Unix timestamp (seconds) when signature was created")
+  .requiredOption(
+    "--signature <sig>",
+    "Hex signature proving address ownership",
+  )
+  .requiredOption(
+    "--timestamp <ts>",
+    "Unix timestamp (seconds) when signature was created",
+  )
   .action(async (options) => {
     await registerCommand(options);
   });

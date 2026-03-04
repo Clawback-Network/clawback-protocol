@@ -29,9 +29,9 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
     // Verify signature proves ownership of the address
     const now = Math.floor(Date.now() / 1000);
     if (Math.abs(now - body.timestamp) > SIGNATURE_MAX_AGE_SECONDS) {
-      res
-        .status(401)
-        .json({ error: "Signature expired — timestamp too old or too far in the future" });
+      res.status(401).json({
+        error: "Signature expired — timestamp too old or too far in the future",
+      });
       return;
     }
 
@@ -48,7 +48,9 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
     }
 
     if (!valid) {
-      res.status(401).json({ error: "Invalid signature — does not match address" });
+      res
+        .status(401)
+        .json({ error: "Invalid signature — does not match address" });
       return;
     }
 

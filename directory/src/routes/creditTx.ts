@@ -13,7 +13,12 @@ import {
   REPUTATION_REGISTRY_ADDRESS,
   IDENTITY_REGISTRY_ADDRESS,
 } from "@clawback-network/protocol";
-import { clawBackCreditLineAbi, erc20Abi, reputationRegistryAbi, identityRegistryAbi } from "../contractAbi.js";
+import {
+  clawBackCreditLineAbi,
+  erc20Abi,
+  reputationRegistryAbi,
+  identityRegistryAbi,
+} from "../contractAbi.js";
 import { config } from "../config.js";
 import { Agent } from "../models/Agent.js";
 import { pinJsonToIpfs } from "../services/pinata.js";
@@ -322,4 +327,3 @@ creditTxRouter.post("/register-8004", async (req, res, next) => {
     next(err);
   }
 });
-

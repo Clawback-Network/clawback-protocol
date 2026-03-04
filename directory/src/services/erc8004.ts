@@ -1,7 +1,6 @@
 import { config } from "../config.js";
 
-const BASE_URL =
-  process.env.ERC8004_API_URL || config.erc8004ApiUrl;
+const BASE_URL = process.env.ERC8004_API_URL || config.erc8004ApiUrl;
 
 export interface Erc8004Agent {
   token_id: string;
@@ -95,7 +94,10 @@ export async function fetchAgentsByOwner(
     }
     const json = await res.json();
     // 8004scan wraps responses in { success, data }
-    const raw = (Array.isArray(json) ? json : json.data ?? []) as Record<string, unknown>[];
+    const raw = (Array.isArray(json) ? json : (json.data ?? [])) as Record<
+      string,
+      unknown
+    >[];
     if (!raw.length) return null;
     const agents = raw.map(pickAgent);
     return agents.find((a) => a.is_active) ?? agents[0];
@@ -126,9 +128,7 @@ export async function fetchAgent(
     const raw = (json.data ?? json) as Record<string, unknown>;
     return pickAgent(raw);
   } catch (err) {
-    console.warn(
-      `[erc8004] fetchAgent failed: ${(err as Error).message}`,
-    );
+    console.warn(`[erc8004] fetchAgent failed: ${(err as Error).message}`);
     return null;
   }
 }
@@ -151,14 +151,17 @@ export async function fetchFeedbacks(
       return [];
     }
     const json = await res.json();
-    const raw = (Array.isArray(json) ? json : json.data ?? []) as Record<string, unknown>[];
+    const raw = (Array.isArray(json) ? json : (json.data ?? [])) as Record<
+      string,
+      unknown
+    >[];
     return raw
-      .filter((f) => f.tag1 === "credit" && !f.is_revoked && Number(f.score) > 0)
+      .filter(
+        (f) => f.tag1 === "credit" && !f.is_revoked && Number(f.score) > 0,
+      )
       .map(pickFeedback);
   } catch (err) {
-    console.warn(
-      `[erc8004] fetchFeedbacks failed: ${(err as Error).message}`,
-    );
+    console.warn(`[erc8004] fetchFeedbacks failed: ${(err as Error).message}`);
     return [];
   }
 }
@@ -173,9 +176,7 @@ export async function fetchErc8004Profile(
 ): Promise<Erc8004Profile | null> {
   const agent = await fetchAgentsByOwner(address, chainId);
 
-  const feedbacks = agent
-    ? await fetchFeedbacks(chainId, agent.token_id)
-    : [];
+  const feedbacks = agent ? await fetchFeedbacks(chainId, agent.token_id) : [];
 
   return {
     agent,

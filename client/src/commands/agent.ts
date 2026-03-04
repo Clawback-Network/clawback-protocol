@@ -85,9 +85,7 @@ export async function agentCommand(address: string): Promise<void> {
           `    Feedbacks:      ${profile.erc8004Profile.feedbacks.length}`,
         );
       }
-      console.log(
-        `    Fetched:        ${profile.erc8004Profile.fetched_at}`,
-      );
+      console.log(`    Fetched:        ${profile.erc8004Profile.fetched_at}`);
     }
   } catch (err) {
     console.error(`Could not reach directory: ${(err as Error).message}`);

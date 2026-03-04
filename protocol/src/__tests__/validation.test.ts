@@ -236,25 +236,41 @@ describe("registerPayloadSchema", () => {
 
   it("rejects missing address", () => {
     expect(() =>
-      registerPayloadSchema.parse({ name: "Test", signature: "0x", timestamp: 0 }),
+      registerPayloadSchema.parse({
+        name: "Test",
+        signature: "0x",
+        timestamp: 0,
+      }),
     ).toThrow();
   });
 
   it("rejects missing name", () => {
     expect(() =>
-      registerPayloadSchema.parse({ address: "0xabc123", signature: "0x", timestamp: 0 }),
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        signature: "0x",
+        timestamp: 0,
+      }),
     ).toThrow();
   });
 
   it("rejects missing signature", () => {
     expect(() =>
-      registerPayloadSchema.parse({ address: "0xabc123", name: "Test", timestamp: 0 }),
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        name: "Test",
+        timestamp: 0,
+      }),
     ).toThrow();
   });
 
   it("rejects missing timestamp", () => {
     expect(() =>
-      registerPayloadSchema.parse({ address: "0xabc123", name: "Test", signature: "0x" }),
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        name: "Test",
+        signature: "0x",
+      }),
     ).toThrow();
   });
 });
@@ -275,4 +291,3 @@ describe("validateRegistration", () => {
     expect(() => validateRegistration({})).toThrow();
   });
 });
-

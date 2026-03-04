@@ -357,9 +357,7 @@ export async function eventsCommand(address: string): Promise<void> {
       const counterparty = e.assessor_addr
         ? ` (assessor: ${e.assessor_addr.slice(0, 10)}...)`
         : "";
-      console.log(
-        `  [${ts}] ${label}${amountStr}${aprStr}${counterparty}`,
-      );
+      console.log(`  [${ts}] ${label}${amountStr}${aprStr}${counterparty}`);
     }
   } catch (err) {
     console.error(`Could not reach directory: ${(err as Error).message}`);

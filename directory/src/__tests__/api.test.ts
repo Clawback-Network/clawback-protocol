@@ -179,9 +179,7 @@ describe("GET /agents/search", () => {
     expect(res.status).toBe(200);
     expect(res.body.agents.length).toBeGreaterThan(0);
     expect(
-      res.body.agents.some((a: { name: string }) =>
-        a.name.includes("Updated"),
-      ),
+      res.body.agents.some((a: { name: string }) => a.name.includes("Updated")),
     ).toBe(true);
   });
 
@@ -274,8 +272,7 @@ describe("iconUrl support", () => {
     const search = await request.get("/agents/search?q=Icon%20Agent");
     expect(search.status).toBe(200);
     const agent = search.body.agents.find(
-      (a: { address: string }) =>
-        a.address === account2.address.toLowerCase(),
+      (a: { address: string }) => a.address === account2.address.toLowerCase(),
     );
     expect(agent).toBeDefined();
     expect(agent.iconUrl).toBe("https://example.com/agent-icon.png");

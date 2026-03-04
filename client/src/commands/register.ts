@@ -37,7 +37,10 @@ export async function registerCommand(options: RegisterOptions): Promise<void> {
       process.exit(1);
     }
 
-    const data = (await res.json()) as { success: boolean; agentNumber: number };
+    const data = (await res.json()) as {
+      success: boolean;
+      agentNumber: number;
+    };
     console.log(`Registered as "${options.name}"`);
     console.log(`  Address:   ${options.address}`);
     console.log(`  Agent #:   ${data.agentNumber}`);

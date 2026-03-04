@@ -16,9 +16,13 @@ export async function up({ context: sequelize }: { context: Sequelize }) {
   // Copy data would happen in real postgres via raw query, but for pg-mem compatibility
   // we just add the column. In production, run:
   //   UPDATE agents SET erc8004_agent_id = agent_id;
-  await qi.sequelize.query(
-    "UPDATE agents SET erc8004_agent_id = agent_id WHERE agent_id IS NOT NULL",
-  ).catch(() => { /* ignore if column already gone */ });
+  await qi.sequelize
+    .query(
+      "UPDATE agents SET erc8004_agent_id = agent_id WHERE agent_id IS NOT NULL",
+    )
+    .catch(() => {
+      /* ignore if column already gone */
+    });
   await qi.removeColumn("agents", "agent_id");
 
   // Drop agent_id from credit_lines (AgentIdRegistered event removed)
@@ -42,9 +46,11 @@ export async function down({ context: sequelize }: { context: Sequelize }) {
     allowNull: true,
     defaultValue: null,
   });
-  await qi.sequelize.query(
-    "UPDATE agents SET agent_id = erc8004_agent_id WHERE erc8004_agent_id IS NOT NULL",
-  ).catch(() => {});
+  await qi.sequelize
+    .query(
+      "UPDATE agents SET agent_id = erc8004_agent_id WHERE erc8004_agent_id IS NOT NULL",
+    )
+    .catch(() => {});
   await qi.removeColumn("agents", "erc8004_agent_id");
 
   // Restore last_heartbeat

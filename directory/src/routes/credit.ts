@@ -197,7 +197,12 @@ creditRouter.get("/leaderboard", readLimiter, async (req, res, next) => {
  */
 creditRouter.get("/events", readLimiter, async (req, res, next) => {
   try {
-    const { address, event_type, limit: limitStr, offset: offsetStr } = req.query;
+    const {
+      address,
+      event_type,
+      limit: limitStr,
+      offset: offsetStr,
+    } = req.query;
     const limit = Math.min(
       Math.max(1, parseInt(limitStr as string) || 50),
       200,

@@ -150,7 +150,10 @@ async function handleAgentBacked(
         }
       })
       .catch((err) =>
-        console.warn("[indexer] ERC-8004 lookup failed for stub:", (err as Error).message),
+        console.warn(
+          "[indexer] ERC-8004 lookup failed for stub:",
+          (err as Error).message,
+        ),
       );
     console.log(`[indexer] Created stub agent profile for ${addr}`);
   }
