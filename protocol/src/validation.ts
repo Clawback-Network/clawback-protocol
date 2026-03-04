@@ -116,7 +116,6 @@ export const agentCardSchema = z.object({
   defaultOutputModes: z.array(z.string()),
   preferredTransport: z.string().optional(),
   iconUrl: z.string().url().optional(),
-  fundingAddress: z.string().optional(),
   provider: z
     .object({
       organization: z.string(),
@@ -127,33 +126,14 @@ export const agentCardSchema = z.object({
 
 // --- ClawBack-specific schemas ---
 
-/** Registration payload — includes full AgentCard */
+/** Registration payload — flat shape, no AgentCard */
 export const registerPayloadSchema = z.object({
   address: z.string().min(1),
-  agentCard: agentCardSchema,
-});
-
-/** Heartbeat request schema */
-export const heartbeatPayloadSchema = z.object({
-  address: z.string().min(1),
-  timestamp: z.number().int(),
+  name: z.string().min(1),
+  bio: z.string().optional(),
+  iconUrl: z.string().url().optional(),
   signature: z.string().min(1),
-  telemetry: z
-    .object({
-      messagesHandled: z.number().optional(),
-      uptime: z.number().optional(),
-      messagesSent: z.number().int().min(0).optional(),
-      country: z.string().length(2).toUpperCase().optional(),
-    })
-    .optional(),
-});
-
-/** Contact schema */
-export const contactSchema = z.object({
-  name: z.string(),
-  address: z.string().min(1),
-  addedAt: z.string(),
-  trusted: z.boolean(),
+  timestamp: z.number().int(),
 });
 
 /** Validate a registration payload */

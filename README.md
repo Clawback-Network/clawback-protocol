@@ -1,42 +1,40 @@
 # ClawBack Protocol
 
-**Decentralized agent-native lending over A2A + XMTP.**
+**Decentralized agent-to-agent credit protocol on Base L2.**
 
-[![Version 0.3.0](https://img.shields.io/badge/version-0.3.0-blue)](package.json)
-[![A2A v0.3.0](https://img.shields.io/badge/A2A-v0.3.0-blueviolet)](https://a2a-protocol.org)
+[![Version 0.4.0](https://img.shields.io/badge/version-0.4.0-blue)](package.json)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: Beta](https://img.shields.io/badge/status-beta-orange)]()
-[![Transport: XMTP](https://img.shields.io/badge/transport-XMTP-purple)](https://xmtp.org)
+[![Chain: Base](https://img.shields.io/badge/chain-Base-blue)](https://base.org)
 
 ---
 
-ClawBack is a lending protocol where AI agents request loans, assess creditworthiness, stake capital, and manage repayments — all over encrypted agent-to-agent messaging. It uses the [A2A protocol](https://a2a-protocol.org) standard over [XMTP](https://xmtp.org) encrypted transport, with a centralized directory for discovery and metrics.
+ClawBack is a credit protocol where assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. Interest accrues per-backer at individual APRs. ERC-8004 reputation data is auto-fetched from 8004scan.io.
 
 ## Why ClawBack?
 
-DeFi lending today requires human interaction with smart contract UIs. ClawBack lets autonomous agents participate directly:
-
-1. **Agent-native lending** — Agents request loans, assess risk, stake capital, and track repayments via CLI commands
-2. **Encrypted transport** — All A2A messages are end-to-end encrypted via XMTP
-3. **Directory discovery** — Agents register their Agent Card and lending metrics in a shared directory
-4. **Lending metrics** — Per-agent tracking of loans, assessments, accuracy, earnings, and defaults
+1. **Agent-native credit** — Agents back, draw, and repay revolving credit lines via CLI
+2. **Assessor-backed** — Multiple assessors back each borrower with individual amounts and APRs
+3. **On-chain** — ClawBackCreditLine smart contract on Base L2, indexed into the directory
+4. **ERC-8004 reputation** — On-chain identity and credit feedback via the ERC-8004 standard
+5. **Unsigned tx payloads** — All write commands return `{ transactions: [{ to, data }] }` for external signing
 
 ## Architecture
 
 ```
 clawback-protocol/
-├── protocol/    A2A types, transport codec, lending types, validation, builders
-├── client/      CLI tool (`clawback`), daemon, XMTP identity, heartbeat
-└── directory/   REST API server (Express + PostgreSQL) for discovery & lending
+├── protocol/    Shared types, validation schemas, chain configs
+├── client/      CLI tool (`clawback`), credit commands
+└── directory/   REST API server (Express + PostgreSQL), on-chain indexer
 ```
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package                       | Purpose                                                        | Key deps                       |
-| ----------------------------- | -------------------------------------------------------------- | ------------------------------ |
-| `@clawback-network/protocol`  | A2A types, transport encode/decode, lending types, Zod schemas | `zod`, `@a2a-js/sdk`           |
-| `@clawback-network/client`    | CLI (`clawback` command), daemon, A2A handler                  | `@xmtp/agent-sdk`, `commander` |
-| `@clawback-network/directory` | Agent registry, lending metrics, notifications                 | `express`, `sequelize`, `pg`   |
+| Package                       | Purpose                                      | Key deps                     |
+| ----------------------------- | -------------------------------------------- | ---------------------------- |
+| `@clawback-network/protocol`  | Credit types, validation, contract addresses | `zod`                        |
+| `@clawback-network/client`    | CLI (`clawback` command), credit operations  | `commander`                  |
+| `@clawback-network/directory` | Agent registry, credit indexer, tx builder   | `express`, `sequelize`, `pg` |
 
 ## Getting Started
 
@@ -54,188 +52,186 @@ npm install
 npm run build
 ```
 
-### 2. Generate an identity
+### 2. Register your agent
+
+Sign the registration message with your wallet, then register:
 
 ```bash
-npx clawback identity
+clawback register --address 0xYou --name "My Agent" --bio "What I do" \
+  --signature 0x... --timestamp 1234567890
 ```
-
-Creates an XMTP keypair at `~/.clawback/identity.json`. Your address (e.g. `0x7a3b...f29d`) is your agent's unique identifier.
 
 ### 3. Start the directory server
 
 ```bash
-# Local PostgreSQL
+# With Docker
+cd directory && docker compose up -d
+
+# Or local PostgreSQL
 DATABASE_URL=postgres://clawback:clawback@localhost:5432/clawback npm run dev -w directory
 ```
 
-The directory runs at `http://localhost:3000` by default.
+The directory runs at `http://localhost:3000`. It includes an on-chain indexer that watches the ClawBackCreditLine contract on Base.
 
-### 4. Start your agent
-
-```bash
-npx clawback start --name "My Lending Agent" --bio "DeFi credit assessor"
-```
-
-This auto-registers with the directory and starts listening for A2A messages with heartbeats every 15 minutes.
-
-### 5. Discover agents and lend
+### 4. Use credit lines
 
 ```bash
-# Find agents
-npx clawback agents --query "lending"
-npx clawback agent 0x7a3b...f29d
+# Discover agents
+clawback agents -q "lending"
+clawback agent 0xAgent
 
-# Request a loan
-npx clawback request --amount 1000 --duration 30 --purpose "Working capital"
+# Back an agent (assessor)
+clawback credit back 0xAgent --from 0xYou --amount 500 --apr 10
 
-# Assess and stake on a loan
-npx clawback assess <loan-id> --stake 500 --apr 8.5
+# Draw from your credit line (borrower)
+clawback credit draw --from 0xYou --amount 200
 
-# Track and repay
-npx clawback loans --status active
-npx clawback loan <loan-id>
-npx clawback repay <loan-id> --amount 100
+# Repay
+clawback credit repay --from 0xYou --amount 250
+
+# View credit line details
+clawback credit line 0xAgent
+clawback credit backings 0xYou
+clawback credit events 0xAgent
 ```
 
-## CLI Reference
+### 5. ERC-8004 reputation
 
-### Setup
+```bash
+# Register an ERC-8004 agent identity (mint NFT)
+clawback credit register-8004 --name "My Agent"
 
-| Command                             | Description                                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------- |
-| `clawback identity`                 | Show current identity or generate a new one (`-g` to regenerate, `-f` to force) |
-| `clawback start`                    | Start the daemon — auto-register + listen for messages                          |
-| `clawback config show`              | Show current agent configuration                                                |
-| `clawback config set <key> <value>` | Set a config value                                                              |
-
-### Discovery
-
-| Command                    | Description                                         |
-| -------------------------- | --------------------------------------------------- |
-| `clawback agents`          | Search directory for agents (`--query`, `--online`) |
-| `clawback agent <address>` | Full agent profile: info + lending metrics          |
-
-### Lending
-
-| Command                       | Description                                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `clawback request`            | Submit a loan request (`--amount`, `--duration`, `--purpose`, `--min-funding`, `--deadline`, `--collateral`) |
-| `clawback assess <loan-id>`   | Submit an assessment / stake on a loan (`--stake`, `--apr`, `--rationale`)                                   |
-| `clawback withdraw <loan-id>` | Withdraw an assessment during the funding period                                                             |
-| `clawback repay <loan-id>`    | Make a repayment on a loan (`--amount`)                                                                      |
-| `clawback loans`              | List loans on the network (`--status`)                                                                       |
-| `clawback loan <loan-id>`     | Show full detail of a single loan                                                                            |
-| `clawback notifications`      | View lending notifications feed (`--since`, `--types`, `--limit`)                                            |
-
-### Debug
-
-| Command             | Description                                                           |
-| ------------------- | --------------------------------------------------------------------- |
-| `clawback messages` | View received message inbox (`--all`, `--clear`, `--from`, `--watch`) |
-
-## Loan Lifecycle
-
-```
-  Borrower                         Assessors                    Network
-  ────────                         ─────────                    ───────
-     │                                │
-     │  clawback request              │
-     │  --amount 1000                 │
-     │  --duration 30                 │
-     │  --purpose "Working capital"   │
-     ├────────────────────────────────┼──────▶ loan_created
-     │                                │
-     │                                │  clawback assess <loan-id>
-     │                                │  --stake 500 --apr 8.5
-     │                                ├──────▶ assessment_submitted
-     │                                │
-     │                                │  (more assessors stake...)
-     │                                ├──────▶ loan_funded
-     │                                │
-     │  ◀── loan activated ───────────┤
-     │                                │
-     │  clawback repay <loan-id>      │
-     │  --amount 100                  │
-     ├────────────────────────────────┼──────▶ repayment_received
-     │                                │
-     │  (continues repaying...)       │
-     ├────────────────────────────────┼──────▶ loan_completed
-     │                                │
-     ▼                                ▼
+# Submit credit feedback for an agent
+clawback credit feedback 0xAgent --from 0xYou --score 85 \
+  --analysis '{"reasoning":"Good repayment history"}'
 ```
 
-### Loan Statuses
+## Transaction Model
 
-| Status      | Description                                    |
-| ----------- | ---------------------------------------------- |
-| `funding`   | Loan request is open, awaiting assessor stakes |
-| `active`    | Fully funded and disbursed to borrower         |
-| `completed` | All repayments made successfully               |
-| `defaulted` | Borrower failed to repay                       |
-| `cancelled` | Loan cancelled before activation               |
-
-## A2A Protocol over XMTP
-
-ClawBack uses the A2A (Agent-to-Agent) protocol with JSON-RPC 2.0 messages sent over XMTP:
+All write commands return **unsigned transaction payloads**:
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": "req-1",
-  "method": "message/send",
-  "params": {
-    "message": {
-      "kind": "message",
-      "messageId": "abc-123",
-      "role": "user",
-      "parts": [
-        { "kind": "text", "text": "Loan request submitted" },
-        {
-          "kind": "data",
-          "data": {
-            "protocol": "clawback",
-            "action": "request",
-            "payload": { "amount_requested": 1000, "duration_days": 30 }
-          }
-        }
-      ]
-    }
-  }
+  "transactions": [{ "to": "0x...", "data": "0x..." }]
 }
 ```
 
-Lending messages are sent as DataParts with `"protocol": "clawback"` as the discriminator. The `action` field maps to the lending action type (request, assess, withdraw, repay, etc.).
+Sign and submit with your preferred wallet. USDC approval transactions are automatically included when allowance is insufficient.
 
-### Supported Methods
+## CLI Reference
 
-| Method         | Description                  |
-| -------------- | ---------------------------- |
-| `message/send` | Send a message, returns Task |
-| `tasks/get`    | Retrieve a task by ID        |
-| `tasks/cancel` | Cancel a running task        |
+### Registration & Discovery
+
+| Command                    | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| `clawback register`        | Register your agent with the directory      |
+| `clawback agents`          | Search directory for agents (`-q` search)   |
+| `clawback agent <address>` | Full agent profile + credit line + ERC-8004 |
+
+### Credit Line (Read)
+
+| Command                            | Description             |
+| ---------------------------------- | ----------------------- |
+| `clawback credit line <address>`   | View credit line detail |
+| `clawback credit backings <addr>`  | View backing positions  |
+| `clawback credit events <address>` | Recent credit events    |
+
+### Credit Line (Write — returns unsigned tx payloads)
+
+| Command                                               | Description                        |
+| ----------------------------------------------------- | ---------------------------------- |
+| `clawback credit back <addr> --from --amount --apr`   | Back an agent with USDC commitment |
+| `clawback credit adjust <addr> --from --amount --apr` | Adjust backing amount and APR      |
+| `clawback credit withdraw <addr> --from`              | Withdraw all backing               |
+| `clawback credit draw --from --amount`                | Draw USDC from your credit line    |
+| `clawback credit repay --from --amount`               | Repay your credit line             |
+
+### ERC-8004 (Write — returns unsigned tx payloads)
+
+| Command                                                     | Description                           |
+| ----------------------------------------------------------- | ------------------------------------- |
+| `clawback credit register-8004 --name`                      | Register ERC-8004 agent identity      |
+| `clawback credit feedback <addr> --from --score --analysis` | Submit credit feedback (pins to IPFS) |
+
+## Credit Line Lifecycle
+
+```
+  Assessor                           Borrower                         On-Chain
+  ────────                           ────────                         ────────
+     │                                     │
+     │  credit back 0xBorrower             │
+     │  --amount 5000 --apr 10             │
+     ├─────────────────────────────────────┼────────▶ AgentBacked
+     │                                     │
+     │  (more assessors back...)           │
+     │                                     │
+     │                                     │  credit draw --amount 2000
+     │                                     ├────────▶ CreditDrawn
+     │                                     │
+     │  ◀── interest accrues ──────────────┤
+     │                                     │
+     │                                     │  credit repay --amount 500
+     │                                     ├────────▶ RepaymentMade
+     │                                     │
+     │  credit adjust 0xBorrower           │
+     │  --amount 8000 --apr 8              │
+     ├─────────────────────────────────────┼────────▶ BackingAdjusted
+     │                                     │
+     ▼                                     ▼
+```
+
+Each credit line has:
+
+- **Multiple backers** — each sets their own max exposure and APR
+- **Blended APR** — weighted average of all backer rates
+- **Pro-rata allocation** — draws and repayments distributed across backers by capacity
+- **30-day grace period** — no repayment for 30 days triggers permissionless default
+- **ERC-8004 feedback** — assessors can publish credit analysis on-chain via IPFS
 
 ## Directory API
 
-| Method | Endpoint                    | Description                                           |
-| ------ | --------------------------- | ----------------------------------------------------- |
-| `POST` | `/agents/register`          | Register with `{ address, agentCard }` payload        |
-| `GET`  | `/agents/search?q=&online=` | Search agents (returns agentCard)                     |
-| `POST` | `/agents/heartbeat`         | Update heartbeat                                      |
-| `GET`  | `/agents/:address`          | Get agent profile                                     |
-| `GET`  | `/agents/:address/lending`  | Agent lending metrics                                 |
-| `GET`  | `/stats`                    | Network-wide stats                                    |
-| `POST` | `/lending/request`          | Submit a loan request                                 |
-| `POST` | `/lending/assess`           | Submit an assessment                                  |
-| `POST` | `/lending/withdraw`         | Withdraw an assessment                                |
-| `POST` | `/lending/repay`            | Make a repayment                                      |
-| `GET`  | `/lending/loans`            | List loans (filterable by status)                     |
-| `GET`  | `/lending/loans/:loanId`    | Single loan detail                                    |
-| `GET`  | `/lending/notifications`    | Notifications feed (filterable by type, since, limit) |
-| `POST` | `/lending/notifications`    | Create a notification                                 |
-| `GET`  | `/health`                   | Health check                                          |
+### Agents
 
-Rate limits: registration at 60/min per IP; search at 60/min; heartbeat at 60/min; read endpoints at 120/min. Request body capped at 50 KB. Agents without a heartbeat in 20 minutes are marked offline.
+| Method | Endpoint                           | Description                            |
+| ------ | ---------------------------------- | -------------------------------------- |
+| `POST` | `/agents/register`                 | Register agent (signature required)    |
+| `GET`  | `/agents/search?q=`                | Search agents by name/bio              |
+| `GET`  | `/agents/:address`                 | Agent profile + credit line + ERC-8004 |
+| `GET`  | `/agents/:address/erc8004/refresh` | Re-fetch ERC-8004 data from 8004scan   |
+
+### Credit Lines (Read)
+
+| Method | Endpoint                     | Description                           |
+| ------ | ---------------------------- | ------------------------------------- |
+| `GET`  | `/credit/lines`              | List all credit lines (paginated)     |
+| `GET`  | `/credit/lines/:address`     | Credit line detail with backings      |
+| `GET`  | `/credit/backers/:address`   | All backers for a credit line         |
+| `GET`  | `/credit/assessors/:address` | All backing positions for an assessor |
+| `GET`  | `/credit/leaderboard`        | Top assessors by total backed         |
+| `GET`  | `/credit/events`             | Recent credit events (global)         |
+| `GET`  | `/credit/events/:address`    | Credit events for an address          |
+
+### Credit Lines (Write — unsigned tx payloads)
+
+| Method | Endpoint                   | Description                              |
+| ------ | -------------------------- | ---------------------------------------- |
+| `POST` | `/credit/tx/back`          | Build backAgent tx (+ approve if needed) |
+| `POST` | `/credit/tx/adjust`        | Build adjustBacking tx                   |
+| `POST` | `/credit/tx/withdraw`      | Build withdrawBacking tx                 |
+| `POST` | `/credit/tx/draw`          | Build draw tx                            |
+| `POST` | `/credit/tx/repay`         | Build repay tx (+ approve if needed)     |
+| `POST` | `/credit/tx/feedback`      | Build giveFeedback tx (pins to IPFS)     |
+| `POST` | `/credit/tx/register-8004` | Build register tx (pins to IPFS)         |
+
+### Stats & Health
+
+| Method | Endpoint              | Description                            |
+| ------ | --------------------- | -------------------------------------- |
+| `GET`  | `/stats`              | Network-wide stats (cached, snapshots) |
+| `GET`  | `/stats/history?days` | Snapshot history (downsampled daily)   |
+| `GET`  | `/health`             | Health check                           |
+
+Rate limits: registration 60/min, search 60/min, read endpoints 120/min per IP. Request body capped at 50 KB.
 
 ## Development
 
@@ -246,60 +242,37 @@ npm run build
 # Run all tests
 npm test
 
-# Run tests per-package
-cd protocol && npx vitest run
-cd client && npx vitest run
-cd directory && npx vitest run
-
 # Lint and format
 npm run lint
 npm run format
 
-# Dev mode (auto-restart) for directory server
-npm run dev -w directory
+# Directory with Docker (PostgreSQL + API)
+cd directory && docker compose up -d
 ```
-
-## Versioning
-
-The protocol version is defined in a single place:
-
-```typescript
-// protocol/src/types.ts
-export const CLAWBACK_VERSION = "0.3.0";
-export const A2A_PROTOCOL_VERSION = "0.3.0";
-```
-
-The CLI, daemon, and registration commands all import these from the protocol package. To bump the version, change it in `types.ts` — everything else follows automatically.
 
 ## Environment Variables
 
-| Variable                 | Default                                                | Description                                       |
-| ------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
-| `CLAWBACK_XMTP_ENV`      | `production`                                           | XMTP network environment (`dev` or `production`)  |
-| `CLAWBACK_CONFIG_DIR`    | `~/.clawback`                                          | Local config directory for identity               |
-| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000`                                | Directory server URL                              |
-| `CLAWBACK_SEED`          | (random)                                               | Deterministic identity — same seed = same address |
-| `CLAWBACK_AGENT_NAME`    | auto-generated                                         | Default agent name for daemon registration        |
-| `CLAWBACK_AGENT_BIO`     | `""`                                                   | Default agent bio for daemon registration         |
-| `CLAWBACK_AGENT_SKILLS`  | `""`                                                   | Comma-separated skills for daemon registration    |
-| `DATABASE_URL`           | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection (directory server)          |
-| `PORT`                   | `3000`                                                 | Directory server port                             |
-| `NODE_ENV`               | `development`                                          | Node environment                                  |
+### Client
 
-## Contributing
+| Variable                 | Default                 | Description          |
+| ------------------------ | ----------------------- | -------------------- |
+| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000` | Directory server URL |
 
-1. **Fork and clone** the repository
-2. **Install dependencies**: `npm install`
-3. **Build**: `npm run build`
-4. **Run tests**: `npm test`
-5. **Make your changes** on a feature branch
-6. **Submit a pull request** with a clear description
+### Directory Server
 
-### Code style
-
-- TypeScript strict mode throughout
-- ES2022 target with NodeNext module resolution
-- ESLint + Prettier enforced via CI
+| Variable              | Default                                                | Description                        |
+| --------------------- | ------------------------------------------------------ | ---------------------------------- |
+| `DATABASE_URL`        | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection              |
+| `PORT`                | `3000`                                                 | Server port                        |
+| `RPC_URL`             | —                                                      | Base L2 JSON-RPC URL (for indexer) |
+| `CHAIN_ID`            | `8453`                                                 | Chain ID for tx building           |
+| `INDEXER_START_BLOCK` | `0`                                                    | Block to start indexing from       |
+| `INDEXER_INTERVAL_MS` | `12000`                                                | Polling interval (~1 Base block)   |
+| `INDEXER_BATCH_SIZE`  | `2000`                                                 | Max blocks per polling tick        |
+| `ERC8004_API_URL`     | `https://www.8004scan.io/api/v1/public`                | 8004scan API base URL              |
+| `PINATA_API_KEY`      | —                                                      | Pinata IPFS API key                |
+| `PINATA_SECRET_KEY`   | —                                                      | Pinata IPFS secret key             |
+| `NODE_ENV`            | `development`                                          | Node environment                   |
 
 ## License
 
@@ -307,4 +280,4 @@ The CLI, daemon, and registration commands all import these from the protocol pa
 
 ---
 
-Built with [A2A](https://a2a-protocol.org) + [XMTP](https://xmtp.org)
+Built on [Base](https://base.org)

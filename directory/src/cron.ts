@@ -1,12 +1,8 @@
 import { initDb } from "./db.js";
 import { captureSnapshot } from "./snapshot.js";
-import { sweepStaleAgents } from "./sweep.js";
 
 async function main() {
   await initDb();
-
-  console.log("[clawback-cron] Running sweep...");
-  await sweepStaleAgents();
 
   console.log("[clawback-cron] Capturing snapshot...");
   await captureSnapshot();

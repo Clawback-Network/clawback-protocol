@@ -1,6 +1,8 @@
-import { Op, fn, col } from "sequelize";
+import { fn, col } from "sequelize";
 import { Agent } from "./models/Agent.js";
 import { Snapshot } from "./models/Snapshot.js";
+import { CreditLineModel } from "./models/CreditLine.js";
+import { CreditBacking } from "./models/CreditBacking.js";
 import { config } from "./config.js";
 
 /**
@@ -9,51 +11,33 @@ import { config } from "./config.js";
 export async function captureSnapshot(): Promise<void> {
   const totalAgents = await Agent.count();
 
-  const cutoff = new Date(
-    Date.now() - config.offlineThresholdMinutes * 60 * 1000,
-  );
-  const onlineAgents = await Agent.count({
-    where: {
-      last_heartbeat: { [Op.gte]: cutoff },
-      availability: "online",
-    },
-  });
-
-  const agents = await Agent.findAll({
-    attributes: ["skills"],
-  });
-
-  const skillCounts = new Map<string, number>();
-  for (const agent of agents) {
-    if (Array.isArray(agent.skills)) {
-      for (const skill of agent.skills) {
-        skillCounts.set(skill, (skillCounts.get(skill) || 0) + 1);
-      }
-    }
-  }
-
-  const topSkills = [...skillCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([skill]) => skill);
-
-  // Sum messages_sent across all agents
-  const msgResult = (await Agent.findOne({
-    attributes: [[fn("COALESCE", fn("SUM", col("messages_sent")), 0), "total"]],
+  // Aggregate credit line stats
+  const totalCreditLines = await CreditLineModel.count();
+  const creditAgg = (await CreditLineModel.findOne({
+    attributes: [
+      [fn("COALESCE", fn("SUM", col("total_backing")), 0), "total_backing"],
+      [fn("COALESCE", fn("SUM", col("total_drawn")), 0), "total_drawn"],
+    ],
     raw: true,
-  })) as unknown as { total: number } | null;
-  const messagesReported = Number(msgResult?.total ?? 0);
+  })) as unknown as { total_backing: number; total_drawn: number } | null;
+
+  const activeCreditAssessors = await CreditBacking.count({
+    where: { active: true },
+    distinct: true,
+    col: "assessor_addr",
+  });
 
   await Snapshot.create({
     total_agents: totalAgents,
-    online_agents: onlineAgents,
-    messages_reported: messagesReported,
-    top_skills: topSkills,
+    total_credit_lines: totalCreditLines,
+    total_credit_backing: Number(creditAgg?.total_backing ?? 0),
+    total_credit_drawn: Number(creditAgg?.total_drawn ?? 0),
+    active_credit_assessors: activeCreditAssessors,
     captured_at: new Date(),
   });
 
   console.log(
-    `[snapshot] Captured: ${totalAgents} total, ${onlineAgents} online, ${topSkills.length} skills`,
+    `[snapshot] Captured: ${totalAgents} agents, ${totalCreditLines} credit lines`,
   );
 }
 

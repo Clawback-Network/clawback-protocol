@@ -3,7 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import { agentsRouter } from "./routes/agents.js";
 import { statsRouter } from "./routes/stats.js";
-import { lendingRouter } from "./routes/lending.js";
+import { creditRouter } from "./routes/credit.js";
+import { creditTxRouter } from "./routes/creditTx.js";
 import type { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
 
@@ -20,7 +21,8 @@ app.use(express.json({ limit: "50kb" }));
 // Routes
 app.use("/agents", agentsRouter);
 app.use("/stats", statsRouter);
-app.use("/lending", lendingRouter);
+app.use("/credit", creditRouter);
+app.use("/credit/tx", creditTxRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

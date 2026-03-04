@@ -1,75 +1,46 @@
 #!/usr/bin/env node
-import "dotenv/config";
 import { Command } from "commander";
 import { CLAWBACK_VERSION } from "@clawback-network/protocol";
-import { identityCommand } from "./commands/identity.js";
+import { registerCommand } from "./commands/register.js";
 import { agentsCommand } from "./commands/agents.js";
 import { agentCommand } from "./commands/agent.js";
-import { configShowCommand, configSetCommand } from "./commands/config.js";
-import { messagesCommand } from "./commands/messages.js";
 import {
-  requestCommand,
-  assessCommand,
-  withdrawCommand,
-  repayCommand,
-  loansCommand,
-  loanCommand,
-  notificationsCommand,
-} from "./commands/lending.js";
-import { startDaemon } from "./daemon.js";
+  backCommand,
+  adjustBackingCommand,
+  withdrawBackingCommand,
+  drawCommand,
+  creditRepayCommand,
+  creditLineCommand,
+  backingsCommand,
+  eventsCommand,
+  feedbackCommand,
+  register8004Command,
+} from "./commands/credit.js";
 
 const program = new Command();
 
 program
   .name("clawback")
-  .description("ClawBack — agent-native lending protocol over XMTP")
+  .description("ClawBack — agent-native credit protocol")
   .version(CLAWBACK_VERSION);
 
-// clawback identity
+// clawback register
 program
-  .command("identity")
-  .description("Show current identity or generate a new one")
-  .option("-g, --generate", "Generate identity (idempotent — reuses existing)")
-  .option(
-    "-f, --force",
-    "Force regeneration (overwrites existing, deletes xmtp.db)",
+  .command("register")
+  .description("Register your agent with the directory")
+  .requiredOption("--address <address>", "Your agent address")
+  .requiredOption("--name <name>", "Agent name")
+  .option("--bio <bio>", "Short description of your agent")
+  .requiredOption(
+    "--signature <sig>",
+    "Hex signature proving address ownership",
   )
-  .action((options) => {
-    identityCommand(options);
-  });
-
-// clawback start
-program
-  .command("start")
-  .description(
-    "Start the ClawBack daemon (auto-register + listen for messages)",
+  .requiredOption(
+    "--timestamp <ts>",
+    "Unix timestamp (seconds) when signature was created",
   )
-  .requiredOption("-n, --name <name>", "Agent display name")
-  .option("-b, --bio <bio>", "Agent description / bio")
-  .option("--icon <url>", "URL to an icon/avatar image")
   .action(async (options) => {
-    await startDaemon(options);
-  });
-
-// clawback config
-const config = program
-  .command("config")
-  .description("Manage agent configuration");
-
-config
-  .command("show")
-  .description("Show current config")
-  .action(() => {
-    configShowCommand();
-  });
-
-config
-  .command("set")
-  .description("Set a config value")
-  .argument("<key>", "Config key (contactsOnly, country, maxTurns)")
-  .argument("<value>", "Value to set")
-  .action((key: string, value: string) => {
-    configSetCommand(key, value);
+    await registerCommand(options);
   });
 
 // clawback agents
@@ -85,102 +56,109 @@ program
 // clawback agent <address>
 program
   .command("agent")
-  .description("Show full agent profile: info + lending metrics")
+  .description("Show full agent profile")
   .argument("<address>", "Agent address to look up")
   .action(async (address: string) => {
     await agentCommand(address);
   });
 
-// clawback messages
-program
-  .command("messages")
-  .description("View received message inbox (debug)")
-  .option("-a, --all", "Show all messages (up to 1000)")
-  .option("-c, --clear", "Clear the inbox")
-  .option("-f, --from <address>", "Filter by sender address")
-  .option("-s, --since <date>", "Show messages after date (e.g. 2026-02-18)")
-  .option("-w, --watch", "Watch for new messages in real-time")
-  .action((options) => {
-    messagesCommand(options);
+// --- Credit line commands ---
+
+const credit = program
+  .command("credit")
+  .description("Revolving credit line commands");
+
+credit
+  .command("line")
+  .description("View an agent's credit line")
+  .argument("<address>", "Agent address")
+  .action(async (address: string) => {
+    await creditLineCommand(address);
   });
 
-// --- Lending commands ---
-
-// clawback request
-program
-  .command("request")
-  .description("Submit a loan request")
-  .requiredOption("--amount <usdc>", "USDC amount to borrow")
-  .requiredOption("--duration <days>", "Loan duration in days")
-  .requiredOption("--purpose <text>", "Purpose of the loan")
-  .option("--min-funding <usdc>", "Minimum funding to activate")
-  .option("--deadline <hours>", "Funding deadline in hours", "48")
-  .option("--collateral <usdc>", "Collateral amount in USDC")
-  .action(async (options) => {
-    await requestCommand(options);
+credit
+  .command("backings")
+  .description("View backing positions for an address")
+  .argument("<address>", "Assessor address")
+  .action(async (address: string) => {
+    await backingsCommand(address);
   });
 
-// clawback assess <loan-id>
-program
-  .command("assess")
-  .description("Submit an assessment / stake on a loan")
-  .argument("<loan-id>", "Loan ID to assess")
-  .requiredOption("--stake <usdc>", "USDC amount to stake")
-  .requiredOption("--apr <rate>", "Annual percentage rate")
-  .option("--rationale <text>", "Rationale for the assessment")
-  .action(async (loanId: string, options) => {
-    await assessCommand(loanId, options);
+credit
+  .command("events")
+  .description("View recent credit events for an address")
+  .argument("<address>", "Address to query")
+  .action(async (address: string) => {
+    await eventsCommand(address);
   });
 
-// clawback withdraw <loan-id>
-program
+credit
+  .command("back")
+  .description("Back an agent with a standing USDC commitment")
+  .argument("<address>", "Agent address to back")
+  .requiredOption("--from <address>", "Sender address")
+  .requiredOption("--amount <usdc>", "Max USDC exposure")
+  .requiredOption("--apr <rate>", "Annual rate in percent (e.g. 10)")
+  .action(async (address: string, options) => {
+    await backCommand(address, options);
+  });
+
+credit
+  .command("adjust")
+  .description("Adjust backing amount and APR")
+  .argument("<address>", "Agent address")
+  .requiredOption("--from <address>", "Sender address")
+  .requiredOption("--amount <usdc>", "New max USDC exposure")
+  .requiredOption("--apr <rate>", "New APR in percent")
+  .action(async (address: string, options) => {
+    await adjustBackingCommand(address, options);
+  });
+
+credit
   .command("withdraw")
-  .description("Withdraw an assessment during funding period")
-  .argument("<loan-id>", "Loan ID to withdraw assessment from")
-  .action(async (loanId: string) => {
-    await withdrawCommand(loanId);
+  .description("Withdraw all backing from an agent")
+  .argument("<address>", "Agent address to stop backing")
+  .requiredOption("--from <address>", "Sender address")
+  .action(async (address: string, options) => {
+    await withdrawBackingCommand(address, options);
   });
 
-// clawback repay <loan-id>
-program
+credit
+  .command("draw")
+  .description("Draw USDC from your credit line")
+  .requiredOption("--from <address>", "Sender address")
+  .requiredOption("--amount <usdc>", "USDC amount to draw")
+  .action(async (options) => {
+    await drawCommand(options);
+  });
+
+credit
   .command("repay")
-  .description("Make a repayment on a loan")
-  .argument("<loan-id>", "Loan ID to repay")
+  .description("Repay your credit line")
+  .requiredOption("--from <address>", "Sender address")
   .requiredOption("--amount <usdc>", "USDC amount to repay")
-  .action(async (loanId: string, options) => {
-    await repayCommand(loanId, options);
-  });
-
-// clawback loans
-program
-  .command("loans")
-  .description("List loans on the network")
-  .option(
-    "--status <status>",
-    "Filter by status (funding, active, completed, defaulted, cancelled)",
-  )
   .action(async (options) => {
-    await loansCommand(options);
+    await creditRepayCommand(options);
   });
 
-// clawback loan <loan-id>
-program
-  .command("loan")
-  .description("Show full detail of a single loan")
-  .argument("<loan-id>", "Loan ID to look up")
-  .action(async (loanId: string) => {
-    await loanCommand(loanId);
+credit
+  .command("feedback")
+  .description("Submit ERC-8004 credit feedback for an agent")
+  .argument("<address>", "Agent address to give feedback on")
+  .requiredOption("--from <address>", "Your assessor address")
+  .requiredOption("--score <0-100>", "Credit score (0–100)")
+  .requiredOption("--analysis <json>", "Analysis JSON string")
+  .action(async (address: string, options) => {
+    await feedbackCommand(address, options);
   });
 
-// clawback notifications
-program
-  .command("notifications")
-  .description("View lending notifications feed")
-  .option("--since <date>", "Show notifications after date")
-  .option("--types <types>", "Comma-separated notification types to filter")
-  .option("--limit <n>", "Maximum number of notifications")
+credit
+  .command("register-8004")
+  .description("Register a new ERC-8004 agent identity (mint agent NFT)")
+  .requiredOption("--name <name>", "Agent name")
+  .option("--description <desc>", "Agent description")
   .action(async (options) => {
-    await notificationsCommand(options);
+    await register8004Command(options);
   });
 
 program.parse();

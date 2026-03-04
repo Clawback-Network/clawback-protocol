@@ -3,18 +3,20 @@ import { DataTypes, Model, type Sequelize } from "sequelize";
 export interface SnapshotAttributes {
   id?: number;
   total_agents: number;
-  online_agents: number;
-  messages_reported: number;
-  top_skills: string[];
+  total_credit_lines?: number;
+  total_credit_backing?: number;
+  total_credit_drawn?: number;
+  active_credit_assessors?: number;
   captured_at: Date;
 }
 
 export class Snapshot extends Model<SnapshotAttributes> {
   declare id: number;
   declare total_agents: number;
-  declare online_agents: number;
-  declare messages_reported: number;
-  declare top_skills: string[];
+  declare total_credit_lines: number;
+  declare total_credit_backing: number;
+  declare total_credit_drawn: number;
+  declare active_credit_assessors: number;
   declare captured_at: Date;
 }
 
@@ -31,20 +33,25 @@ export function initSnapshotModel(sequelize: Sequelize): void {
         allowNull: false,
         defaultValue: 0,
       },
-      online_agents: {
+      total_credit_lines: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
       },
-      messages_reported: {
-        type: DataTypes.INTEGER,
+      total_credit_backing: {
+        type: DataTypes.FLOAT,
         allowNull: false,
         defaultValue: 0,
       },
-      top_skills: {
-        type: DataTypes.JSON,
+      total_credit_drawn: {
+        type: DataTypes.FLOAT,
         allowNull: false,
-        defaultValue: [],
+        defaultValue: 0,
+      },
+      active_credit_assessors: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
       },
       captured_at: {
         type: DataTypes.DATE,

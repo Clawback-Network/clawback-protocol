@@ -8,19 +8,7 @@ import {
   agentSkillSchema,
   agentCardSchema,
   registerPayloadSchema,
-  heartbeatPayloadSchema,
-  contactSchema,
   validateRegistration,
-  loanRequestSchema,
-  assessmentSchema,
-  lendingMessageSchema,
-  lendingActionSchema,
-  loanStatusSchema,
-  agentLendingMetricsSchema,
-  clawBackNotificationSchema,
-  clawBackNotificationTypeSchema,
-  buildLendingDataPart,
-  extractLendingAction,
 } from "../index.js";
 
 describe("partSchema", () => {
@@ -187,7 +175,7 @@ describe("agentCardSchema", () => {
   const validCard = {
     name: "Test Agent",
     description: "A test agent",
-    url: "xmtp://0xabc123",
+    url: "clawback://0xabc123",
     version: "0.3.0",
     protocolVersion: "0.3.0",
     skills: [
@@ -223,33 +211,66 @@ describe("agentCardSchema", () => {
 describe("registerPayloadSchema", () => {
   const validPayload = {
     address: "0xabc123",
-    agentCard: {
-      name: "Test Agent",
-      description: "A test agent",
-      url: "xmtp://0xabc123",
-      version: "0.3.0",
-      protocolVersion: "0.3.0",
-      skills: [],
-      capabilities: {},
-      defaultInputModes: ["text/plain"],
-      defaultOutputModes: ["text/plain"],
-    },
+    name: "Test Agent",
+    signature: "0xdeadbeef",
+    timestamp: 1700000000,
   };
 
   it("validates a valid registration payload", () => {
     const result = registerPayloadSchema.parse(validPayload);
     expect(result.address).toBe("0xabc123");
-    expect(result.agentCard.name).toBe("Test Agent");
+    expect(result.name).toBe("Test Agent");
+    expect(result.signature).toBe("0xdeadbeef");
+    expect(result.timestamp).toBe(1700000000);
+  });
+
+  it("validates payload with optional fields", () => {
+    const result = registerPayloadSchema.parse({
+      ...validPayload,
+      bio: "A test agent",
+      iconUrl: "https://example.com/icon.png",
+    });
+    expect(result.bio).toBe("A test agent");
+    expect(result.iconUrl).toBe("https://example.com/icon.png");
   });
 
   it("rejects missing address", () => {
-    const { address: _, ...noAddr } = validPayload;
-    expect(() => registerPayloadSchema.parse(noAddr)).toThrow();
+    expect(() =>
+      registerPayloadSchema.parse({
+        name: "Test",
+        signature: "0x",
+        timestamp: 0,
+      }),
+    ).toThrow();
   });
 
-  it("rejects missing agentCard", () => {
+  it("rejects missing name", () => {
     expect(() =>
-      registerPayloadSchema.parse({ address: "0xabc123" }),
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        signature: "0x",
+        timestamp: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects missing signature", () => {
+    expect(() =>
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        name: "Test",
+        timestamp: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects missing timestamp", () => {
+    expect(() =>
+      registerPayloadSchema.parse({
+        address: "0xabc123",
+        name: "Test",
+        signature: "0x",
+      }),
     ).toThrow();
   });
 });
@@ -258,375 +279,15 @@ describe("validateRegistration", () => {
   it("returns parsed data for valid input", () => {
     const result = validateRegistration({
       address: "0xabc123",
-      agentCard: {
-        name: "Agent",
-        description: "Desc",
-        url: "xmtp://0xabc123",
-        version: "0.3.0",
-        protocolVersion: "0.3.0",
-        skills: [],
-        capabilities: {},
-        defaultInputModes: ["text/plain"],
-        defaultOutputModes: ["text/plain"],
-      },
+      name: "Agent",
+      signature: "0xdeadbeef",
+      timestamp: 1700000000,
     });
     expect(result.address).toBe("0xabc123");
+    expect(result.name).toBe("Agent");
   });
 
   it("throws for invalid input", () => {
     expect(() => validateRegistration({})).toThrow();
-  });
-});
-
-describe("heartbeatPayloadSchema", () => {
-  const validHeartbeat = {
-    address: "0xabc",
-    timestamp: 1700000000,
-    signature: "0xdeadbeef",
-  };
-
-  it("validates a heartbeat with address, timestamp, and signature", () => {
-    const result = heartbeatPayloadSchema.parse(validHeartbeat);
-    expect(result.address).toBe("0xabc");
-    expect(result.timestamp).toBe(1700000000);
-    expect(result.signature).toBe("0xdeadbeef");
-  });
-
-  it("validates a heartbeat with telemetry", () => {
-    const result = heartbeatPayloadSchema.parse({
-      ...validHeartbeat,
-      telemetry: { messagesHandled: 10, uptime: 3600 },
-    });
-    expect(result.telemetry?.messagesHandled).toBe(10);
-  });
-
-  it("rejects missing address", () => {
-    expect(() => heartbeatPayloadSchema.parse({})).toThrow();
-  });
-
-  it("rejects missing timestamp", () => {
-    expect(() =>
-      heartbeatPayloadSchema.parse({ address: "0xabc", signature: "0xsig" }),
-    ).toThrow();
-  });
-
-  it("rejects missing signature", () => {
-    expect(() =>
-      heartbeatPayloadSchema.parse({
-        address: "0xabc",
-        timestamp: 1700000000,
-      }),
-    ).toThrow();
-  });
-
-  it("validates a heartbeat with country", () => {
-    const result = heartbeatPayloadSchema.parse({
-      ...validHeartbeat,
-      telemetry: { country: "no" },
-    });
-    expect(result.telemetry?.country).toBe("NO");
-  });
-
-  it("rejects country with wrong length", () => {
-    expect(() =>
-      heartbeatPayloadSchema.parse({
-        ...validHeartbeat,
-        telemetry: { country: "NOR" },
-      }),
-    ).toThrow();
-  });
-});
-
-describe("contactSchema", () => {
-  it("validates a contact", () => {
-    const result = contactSchema.parse({
-      name: "Alice",
-      address: "0xabc",
-      addedAt: "2026-01-01T00:00:00Z",
-      trusted: true,
-    });
-    expect(result.trusted).toBe(true);
-  });
-});
-
-// --- Lending schema tests ---
-
-describe("lendingActionSchema", () => {
-  it("validates all lending actions", () => {
-    const actions = [
-      "request",
-      "assess",
-      "withdraw",
-      "repay",
-      "activate",
-      "cancel",
-      "complete",
-      "default",
-      "query",
-      "notify",
-    ];
-    for (const action of actions) {
-      expect(lendingActionSchema.parse(action)).toBe(action);
-    }
-  });
-
-  it("rejects invalid action", () => {
-    expect(() => lendingActionSchema.parse("invalid")).toThrow();
-  });
-});
-
-describe("loanStatusSchema", () => {
-  it("validates all loan statuses", () => {
-    const statuses = [
-      "funding",
-      "active",
-      "completed",
-      "defaulted",
-      "cancelled",
-    ];
-    for (const status of statuses) {
-      expect(loanStatusSchema.parse(status)).toBe(status);
-    }
-  });
-
-  it("rejects invalid status", () => {
-    expect(() => loanStatusSchema.parse("pending")).toThrow();
-  });
-});
-
-describe("loanRequestSchema", () => {
-  it("validates a valid loan request", () => {
-    const result = loanRequestSchema.parse({
-      amount_requested: 1000,
-      funding_deadline_hours: 48,
-      duration_days: 30,
-      purpose: "Working capital",
-    });
-    expect(result.amount_requested).toBe(1000);
-    expect(result.duration_days).toBe(30);
-  });
-
-  it("accepts optional fields", () => {
-    const result = loanRequestSchema.parse({
-      amount_requested: 5000,
-      duration_days: 90,
-      purpose: "Equipment",
-      min_funding_amount: 2500,
-      funding_deadline_hours: 72,
-      collateral_amount: 1000,
-    });
-    expect(result.min_funding_amount).toBe(2500);
-    expect(result.funding_deadline_hours).toBe(72);
-    expect(result.collateral_amount).toBe(1000);
-  });
-
-  it("rejects negative amount", () => {
-    expect(() =>
-      loanRequestSchema.parse({
-        amount_requested: -100,
-        duration_days: 30,
-        purpose: "Test",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects missing purpose", () => {
-    expect(() =>
-      loanRequestSchema.parse({
-        amount_requested: 1000,
-        duration_days: 30,
-      }),
-    ).toThrow();
-  });
-});
-
-describe("assessmentSchema", () => {
-  it("validates a valid assessment", () => {
-    const result = assessmentSchema.parse({
-      loan_id: "loan-001",
-      stake_amount: 500,
-      apr: 8.5,
-      decision: "fund",
-    });
-    expect(result.loan_id).toBe("loan-001");
-    expect(result.decision).toBe("fund");
-  });
-
-  it("accepts reject decision", () => {
-    const result = assessmentSchema.parse({
-      loan_id: "loan-001",
-      stake_amount: 1,
-      apr: 0,
-      decision: "reject",
-      rationale: "Too risky",
-    });
-    expect(result.decision).toBe("reject");
-    expect(result.rationale).toBe("Too risky");
-  });
-
-  it("rejects invalid decision", () => {
-    expect(() =>
-      assessmentSchema.parse({
-        loan_id: "loan-001",
-        stake_amount: 500,
-        apr: 8.5,
-        decision: "maybe",
-      }),
-    ).toThrow();
-  });
-});
-
-describe("lendingMessageSchema", () => {
-  it("validates a lending message", () => {
-    const result = lendingMessageSchema.parse({
-      action: "request",
-      payload: { amount: 1000 },
-    });
-    expect(result.action).toBe("request");
-  });
-
-  it("accepts optional loanId", () => {
-    const result = lendingMessageSchema.parse({
-      action: "assess",
-      loanId: "loan-001",
-      payload: { stake: 500 },
-    });
-    expect(result.loanId).toBe("loan-001");
-  });
-});
-
-describe("agentLendingMetricsSchema", () => {
-  it("validates full metrics", () => {
-    const result = agentLendingMetricsSchema.parse({
-      loans_requested: 5,
-      loans_completed: 3,
-      loans_defaulted: 1,
-      total_borrowed: 10000,
-      total_repaid: 8000,
-      assessments_made: 10,
-      accuracy_score: 0.85,
-      total_staked: 5000,
-      total_earned: 500,
-      total_lost: 100,
-      blacklisted: false,
-    });
-    expect(result.accuracy_score).toBe(0.85);
-    expect(result.blacklisted).toBe(false);
-  });
-});
-
-describe("clawBackNotificationTypeSchema", () => {
-  it("validates all notification types", () => {
-    const types = [
-      "loan_created",
-      "loan_funded",
-      "loan_activated",
-      "loan_completed",
-      "loan_defaulted",
-      "loan_cancelled",
-      "assessment_received",
-      "assessment_withdrawn",
-      "repayment_received",
-      "deadline_approaching",
-    ];
-    for (const type of types) {
-      expect(clawBackNotificationTypeSchema.parse(type)).toBe(type);
-    }
-  });
-});
-
-describe("clawBackNotificationSchema", () => {
-  it("validates a notification", () => {
-    const result = clawBackNotificationSchema.parse({
-      id: "notif-001",
-      type: "loan_created",
-      loan_id: "loan-001",
-      agent_addr: "0xabc123",
-      data: { amount: 1000 },
-      timestamp: "2026-01-15T00:00:00Z",
-    });
-    expect(result.type).toBe("loan_created");
-    expect(result.loan_id).toBe("loan-001");
-  });
-});
-
-// --- Lending builder tests ---
-
-describe("buildLendingDataPart", () => {
-  it("builds a data part with protocol discriminator", () => {
-    const part = buildLendingDataPart("request", { amount: 1000 });
-    expect(part.kind).toBe("data");
-    expect(part.data.protocol).toBe("clawback");
-    expect(part.data.action).toBe("request");
-    expect(part.data.payload).toEqual({ amount: 1000 });
-  });
-
-  it("includes loanId when provided", () => {
-    const part = buildLendingDataPart("assess", { stake: 500 }, "loan-001");
-    expect(part.data.loanId).toBe("loan-001");
-  });
-
-  it("omits loanId when not provided", () => {
-    const part = buildLendingDataPart("request", { amount: 1000 });
-    expect(part.data.loanId).toBeUndefined();
-  });
-});
-
-describe("extractLendingAction", () => {
-  it("extracts action from a clawback DataPart", () => {
-    const part = {
-      kind: "data" as const,
-      data: {
-        protocol: "clawback",
-        action: "request",
-        payload: { amount: 1000 },
-      },
-    };
-    const result = extractLendingAction(part);
-    expect(result).toEqual({
-      action: "request",
-      payload: { amount: 1000 },
-    });
-  });
-
-  it("extracts loanId when present", () => {
-    const part = {
-      kind: "data" as const,
-      data: {
-        protocol: "clawback",
-        action: "assess",
-        loanId: "loan-001",
-        payload: { stake: 500 },
-      },
-    };
-    const result = extractLendingAction(part);
-    expect(result?.loanId).toBe("loan-001");
-  });
-
-  it("returns null for non-clawback DataParts", () => {
-    const part = {
-      kind: "data" as const,
-      data: { key: "value" },
-    };
-    const result = extractLendingAction(part);
-    expect(result).toBeNull();
-  });
-
-  it("returns null for DataParts with different protocol", () => {
-    const part = {
-      kind: "data" as const,
-      data: { protocol: "other", action: "move" },
-    };
-    const result = extractLendingAction(part);
-    expect(result).toBeNull();
-  });
-
-  it("returns null for DataParts without action", () => {
-    const part = {
-      kind: "data" as const,
-      data: { protocol: "clawback" },
-    };
-    const result = extractLendingAction(part);
-    expect(result).toBeNull();
   });
 });

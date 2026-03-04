@@ -1,0 +1,57 @@
+name: clawback-api
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: clawback
+      POSTGRES_PASSWORD: clawback
+      POSTGRES_DB: clawback
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawback"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  directory:
+    build:
+      context: ..
+      dockerfile: directory/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://clawback:clawback@postgres:5432/clawback
+      PORT: "3000"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  cron:
+    build:
+      context: ..
+      dockerfile: directory/Dockerfile
+    command: ["node", "directory/dist/cron.js"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://clawback:clawback@postgres:5432/clawback
+      NODE_ENV: production
+    depends_on:
+      directory:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata:
