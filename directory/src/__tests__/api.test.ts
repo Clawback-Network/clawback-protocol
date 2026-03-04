@@ -2,32 +2,29 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { newDb } from "pg-mem";
 import { Sequelize } from "sequelize";
 import supertest from "supertest";
+import { privateKeyToAccount } from "viem/accounts";
 import { initDb } from "../db.js";
 import { app } from "../app.js";
 
 let request: supertest.SuperTest<supertest.Test>;
 
-/** Helper to build a minimal AgentCard for testing */
-function makeAgentCard(overrides: Record<string, unknown> = {}) {
-  return {
-    name: "Test Agent",
-    description: "A test agent",
-    url: "xmtp://0xAgent001",
-    version: "0.3.0",
-    protocolVersion: "0.3.0",
-    skills: [
-      {
-        id: "lending",
-        name: "Lending",
-        description: "Assess loans",
-        tags: ["lending", "defi"],
-      },
-    ],
-    capabilities: { streaming: false },
-    defaultInputModes: ["text/plain"],
-    defaultOutputModes: ["text/plain"],
-    ...overrides,
-  };
+// Test wallet for signing registration payloads
+const TEST_PRIVATE_KEY =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const testAccount = privateKeyToAccount(TEST_PRIVATE_KEY);
+const TEST_ADDRESS = testAccount.address;
+
+/** Sign a registration message for a given address and timestamp. */
+async function signRegister(
+  address: string,
+  timestamp: number,
+): Promise<string> {
+  const message = `clawback-register:${address.toLowerCase()}:${timestamp}`;
+  return testAccount.signMessage({ message });
+}
+
+function nowSeconds(): number {
+  return Math.floor(Date.now() / 1000);
 }
 
 beforeAll(async () => {
@@ -66,10 +63,15 @@ describe("health", () => {
 });
 
 describe("POST /agents/register", () => {
-  it("registers a new agent with AgentCard", async () => {
+  it("registers a new agent with valid signature", async () => {
+    const ts = nowSeconds();
+    const signature = await signRegister(TEST_ADDRESS, ts);
+
     const res = await request.post("/agents/register").send({
-      address: "0xAgent001",
-      agentCard: makeAgentCard(),
+      address: TEST_ADDRESS,
+      name: "Test Agent",
+      signature,
+      timestamp: ts,
     });
 
     expect(res.status).toBe(200);
@@ -78,17 +80,15 @@ describe("POST /agents/register", () => {
   });
 
   it("upserts an existing agent", async () => {
-    await request.post("/agents/register").send({
-      address: "0xAgent002",
-      agentCard: makeAgentCard({ name: "Original Name" }),
-    });
+    const ts = nowSeconds();
+    const signature = await signRegister(TEST_ADDRESS, ts);
 
     const res = await request.post("/agents/register").send({
-      address: "0xAgent002",
-      agentCard: makeAgentCard({
-        name: "Updated Name",
-        description: "New bio",
-      }),
+      address: TEST_ADDRESS,
+      name: "Updated Name",
+      bio: "New bio",
+      signature,
+      timestamp: ts,
     });
 
     expect(res.status).toBe(200);
@@ -98,31 +98,72 @@ describe("POST /agents/register", () => {
   it("rejects missing address", async () => {
     const res = await request
       .post("/agents/register")
-      .send({ agentCard: makeAgentCard() });
+      .send({ name: "No Address", signature: "0x", timestamp: 0 });
 
     expect(res.status).toBe(400);
   });
 
-  it("rejects missing agentCard", async () => {
+  it("rejects missing name", async () => {
     const res = await request
       .post("/agents/register")
-      .send({ address: "0xNoCard" });
+      .send({ address: "0xNoName", signature: "0x", timestamp: 0 });
 
     expect(res.status).toBe(400);
+  });
+
+  it("rejects invalid signature", async () => {
+    const ts = nowSeconds();
+    const res = await request.post("/agents/register").send({
+      address: TEST_ADDRESS,
+      name: "Bad Sig Agent",
+      signature:
+        "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      timestamp: ts,
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/signature/i);
+  });
+
+  it("rejects stale timestamp", async () => {
+    const staleTs = nowSeconds() - 600; // 10 minutes ago
+    const signature = await signRegister(TEST_ADDRESS, staleTs);
+
+    const res = await request.post("/agents/register").send({
+      address: TEST_ADDRESS,
+      name: "Stale Agent",
+      signature,
+      timestamp: staleTs,
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/expired/i);
+  });
+
+  it("rejects signature from wrong address", async () => {
+    const ts = nowSeconds();
+    // Sign with test account but claim a different address
+    const signature = await signRegister(TEST_ADDRESS, ts);
+
+    const res = await request.post("/agents/register").send({
+      address: "0x0000000000000000000000000000000000000001",
+      name: "Impersonator",
+      signature,
+      timestamp: ts,
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/signature/i);
   });
 });
 
 describe("GET /agents/:address", () => {
-  it("returns a registered agent with agentCard", async () => {
-    const res = await request.get("/agents/0xAgent001");
+  it("returns a registered agent", async () => {
+    const res = await request.get(`/agents/${TEST_ADDRESS}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.name).toBe("Test Agent");
-    expect(res.body.address).toBe("0xagent001");
-    expect(res.body.skills).toEqual(["lending", "defi"]);
-    expect(res.body.agentCard).toBeTruthy();
-    expect(res.body.agentCard.name).toBe("Test Agent");
-    expect(res.body.agentCard.protocolVersion).toBe("0.3.0");
+    expect(res.body.name).toBe("Updated Name");
+    expect(res.body.address).toBe(TEST_ADDRESS.toLowerCase());
   });
 
   it("returns 404 for unknown agent", async () => {
@@ -133,21 +174,13 @@ describe("GET /agents/:address", () => {
 
 describe("GET /agents/search", () => {
   it("searches by query text", async () => {
-    const res = await request.get("/agents/search?q=Test");
+    const res = await request.get("/agents/search?q=Updated");
 
     expect(res.status).toBe(200);
     expect(res.body.agents.length).toBeGreaterThan(0);
     expect(
-      res.body.agents.some((a: { name: string }) => a.name.includes("Test")),
+      res.body.agents.some((a: { name: string }) => a.name.includes("Updated")),
     ).toBe(true);
-  });
-
-  it("includes agentCard in search results", async () => {
-    const res = await request.get("/agents/search?q=Test");
-
-    expect(res.status).toBe(200);
-    expect(res.body.agents[0].agentCard).toBeTruthy();
-    expect(res.body.agents[0].agentCard.url).toContain("xmtp://");
   });
 
   it("returns empty array for no matches", async () => {
@@ -155,18 +188,6 @@ describe("GET /agents/search", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.agents).toEqual([]);
-  });
-});
-
-describe("GET /agents/:address/lending", () => {
-  it("returns default metrics for agent with no lending history", async () => {
-    const res = await request.get("/agents/0xAgent001/lending");
-
-    expect(res.status).toBe(200);
-    expect(res.body.loans_requested).toBe(0);
-    expect(res.body.loans_completed).toBe(0);
-    expect(res.body.accuracy_score).toBe(0.5);
-    expect(res.body.blacklisted).toBe(false);
   });
 });
 
@@ -184,14 +205,8 @@ describe("GET /stats", () => {
 
     expect(res.status).toBe(200);
     expect(typeof res.body.totalAgents).toBe("number");
-    expect(Array.isArray(res.body.topSkills)).toBe(true);
+    expect(typeof res.body.totalCreditLines).toBe("number");
     expect(res.body.capturedAt).toBeUndefined();
-  });
-
-  it("includes skills from registered agents", async () => {
-    const res = await request.get("/stats");
-
-    expect(res.body.topSkills).toContain("lending");
   });
 
   it("returns snapshot data when a snapshot exists", async () => {
@@ -199,9 +214,6 @@ describe("GET /stats", () => {
 
     await Snapshot.create({
       total_agents: 42,
-      online_agents: 7,
-      messages_reported: 0,
-      top_skills: ["lending", "defi"],
       captured_at: new Date(),
     });
 
@@ -209,20 +221,7 @@ describe("GET /stats", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.totalAgents).toBe(42);
-    expect(res.body.topSkills).toEqual(["lending", "defi"]);
     expect(typeof res.body.capturedAt).toBe("string");
-  });
-
-  it("returns uniqueSkills and totalMessages", async () => {
-    const { Snapshot } = await import("../models/Snapshot.js");
-    await Snapshot.destroy({ where: {} });
-
-    const res = await request.get("/stats");
-
-    expect(res.status).toBe(200);
-    expect(typeof res.body.uniqueSkills).toBe("number");
-    expect(typeof res.body.totalMessages).toBe("number");
-    expect(res.body.uniqueSkills).toBeGreaterThan(0);
   });
 });
 
@@ -232,16 +231,10 @@ describe("GET /stats/history", () => {
 
     await Snapshot.create({
       total_agents: 10,
-      online_agents: 5,
-      messages_reported: 100,
-      top_skills: ["lending"],
       captured_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     });
     await Snapshot.create({
       total_agents: 15,
-      online_agents: 8,
-      messages_reported: 200,
-      top_skills: ["lending"],
       captured_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     });
 
@@ -254,34 +247,39 @@ describe("GET /stats/history", () => {
 
     const entry = res.body.history[0];
     expect(typeof entry.totalAgents).toBe("number");
-    expect(typeof entry.messagesReported).toBe("number");
     expect(typeof entry.capturedAt).toBe("string");
   });
 });
 
 describe("iconUrl support", () => {
-  it("stores iconUrl from agentCard on registration", async () => {
-    const card = makeAgentCard({
+  it("stores iconUrl on registration", async () => {
+    const account2 = privateKeyToAccount(
+      "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+    );
+    const ts = nowSeconds();
+    const message = `clawback-register:${account2.address.toLowerCase()}:${ts}`;
+    const signature = await account2.signMessage({ message });
+
+    const res = await request.post("/agents/register").send({
+      address: account2.address,
       name: "Icon Agent",
       iconUrl: "https://example.com/agent-icon.png",
-    });
-    const res = await request.post("/agents/register").send({
-      address: "0xIconAgent001",
-      agentCard: card,
+      signature,
+      timestamp: ts,
     });
     expect(res.status).toBe(200);
 
     const search = await request.get("/agents/search?q=Icon%20Agent");
     expect(search.status).toBe(200);
     const agent = search.body.agents.find(
-      (a: { address: string }) => a.address === "0xiconagent001",
+      (a: { address: string }) => a.address === account2.address.toLowerCase(),
     );
     expect(agent).toBeDefined();
     expect(agent.iconUrl).toBe("https://example.com/agent-icon.png");
   });
 
   it("returns null iconUrl when not provided", async () => {
-    const search = await request.get("/agents/search?q=Test%20Agent");
+    const search = await request.get("/agents/search?q=Updated");
     expect(search.status).toBe(200);
     const agentWithoutIcon = search.body.agents.find(
       (a: { iconUrl: string | null }) => a.iconUrl === null,

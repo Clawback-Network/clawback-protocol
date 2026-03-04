@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Op, fn, col } from "sequelize";
 import { CreditLineModel } from "../models/CreditLine.js";
 import { CreditBacking } from "../models/CreditBacking.js";
+import { CreditEvent } from "../models/CreditEvent.js";
 import { readLimiter } from "../middleware/rateLimit.js";
 
 export const creditRouter = Router();
@@ -183,6 +184,100 @@ creditRouter.get("/leaderboard", readLimiter, async (req, res, next) => {
         total_earned: Number(r.total_earned),
         agents_backed: Number(r.agents_backed),
       })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /credit/events
+ * Recent credit events. Filter by ?address=, ?event_type=, ?limit=, ?offset=
+ * address matches either borrower_addr or assessor_addr.
+ */
+creditRouter.get("/events", readLimiter, async (req, res, next) => {
+  try {
+    const {
+      address,
+      event_type,
+      limit: limitStr,
+      offset: offsetStr,
+    } = req.query;
+    const limit = Math.min(
+      Math.max(1, parseInt(limitStr as string) || 50),
+      200,
+    );
+    const offset = Math.max(0, parseInt(offsetStr as string) || 0);
+
+    const where: Record<string, unknown> = {};
+
+    if (address && typeof address === "string") {
+      const addr = address.toLowerCase();
+      where[Op.or as unknown as string] = [
+        { borrower_addr: addr },
+        { assessor_addr: addr },
+      ];
+    }
+
+    if (event_type && typeof event_type === "string") {
+      where.event_type = event_type;
+    }
+
+    const { rows, count } = await CreditEvent.findAndCountAll({
+      where,
+      order: [["event_timestamp", "DESC"]],
+      limit,
+      offset,
+    });
+
+    res.json({
+      events: rows,
+      total: count,
+      limit,
+      offset,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /credit/events/:address
+ * Credit events for a specific address (as borrower or assessor).
+ */
+creditRouter.get("/events/:address", readLimiter, async (req, res, next) => {
+  try {
+    const addr = (req.params.address as string).toLowerCase();
+    const { event_type, limit: limitStr, offset: offsetStr } = req.query;
+    const limit = Math.min(
+      Math.max(1, parseInt(limitStr as string) || 50),
+      200,
+    );
+    const offset = Math.max(0, parseInt(offsetStr as string) || 0);
+
+    const where: Record<string, unknown> = {
+      [Op.or as unknown as string]: [
+        { borrower_addr: addr },
+        { assessor_addr: addr },
+      ],
+    };
+
+    if (event_type && typeof event_type === "string") {
+      where.event_type = event_type;
+    }
+
+    const { rows, count } = await CreditEvent.findAndCountAll({
+      where,
+      order: [["event_timestamp", "DESC"]],
+      limit,
+      offset,
+    });
+
+    res.json({
+      events: rows,
+      total: count,
+      limit,
+      offset,
     });
   } catch (err) {
     next(err);

@@ -9,7 +9,6 @@ export interface CreditLineAttributes {
   backer_count: number;
   status: string;
   last_repayment_at: Date | null;
-  agent_id: number | null;
   block_number: number;
 }
 
@@ -22,7 +21,6 @@ export class CreditLineModel extends Model<CreditLineAttributes> {
   declare backer_count: number;
   declare status: string;
   declare last_repayment_at: Date | null;
-  declare agent_id: number | null;
   declare block_number: number;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -68,11 +66,6 @@ export function initCreditLineModel(sequelize: Sequelize): void {
       },
       last_repayment_at: {
         type: DataTypes.DATE,
-        allowNull: true,
-        defaultValue: null,
-      },
-      agent_id: {
-        type: DataTypes.INTEGER,
         allowNull: true,
         defaultValue: null,
       },

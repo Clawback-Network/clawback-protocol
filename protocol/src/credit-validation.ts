@@ -14,7 +14,6 @@ export const creditLineSchema = z.object({
   status: creditLineStatusSchema,
   backer_count: z.number().int().min(0),
   last_repayment_at: z.string().optional(),
-  agent_id: z.number().int().optional(),
 });
 
 export const creditBackingSchema = z.object({

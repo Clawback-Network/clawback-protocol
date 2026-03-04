@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { CREDIT_LINE_CONTRACT_ADDRESS } from "@clawback-network/protocol";
 
 export const config = {
   port: parseInt(process.env.PORT || "3000", 10),
@@ -14,15 +15,23 @@ export const config = {
   // ─── Indexer ────────────────────────────────────────────────
   /** JSON-RPC URL for the chain (Base L2). Required for indexer. */
   rpcUrl: process.env.RPC_URL || "",
-  /** ClawBackLending contract address. If empty, lending indexer is disabled. */
-  contractAddress: (process.env.CONTRACT_ADDRESS || "") as `0x${string}` | "",
-  /** ClawBackCreditLine contract address. If empty, credit line indexer is disabled. */
-  creditLineContractAddress: (process.env.CREDIT_LINE_CONTRACT_ADDRESS ||
-    "") as `0x${string}` | "",
+  /** ClawBackCreditLine contract address */
+  creditLineContractAddress: CREDIT_LINE_CONTRACT_ADDRESS,
   /** Polling interval in milliseconds (~1 Base L2 block) */
   indexerIntervalMs: parseInt(process.env.INDEXER_INTERVAL_MS || "12000", 10),
   /** Block number to start indexing from (contract deployment block) */
   indexerStartBlock: parseInt(process.env.INDEXER_START_BLOCK || "0", 10),
   /** Max blocks to fetch per polling tick */
   indexerBatchSize: parseInt(process.env.INDEXER_BATCH_SIZE || "2000", 10),
+  /** Chain ID for tx-building endpoints (default: Base mainnet) */
+  chainId: parseInt(process.env.CHAIN_ID || "8453", 10),
+
+  // ─── ERC-8004 ─────────────────────────────────────────────
+  /** 8004scan API base URL */
+  erc8004ApiUrl:
+    process.env.ERC8004_API_URL || "https://www.8004scan.io/api/v1/public",
+
+  // ─── Pinata IPFS ──────────────────────────────────────────
+  pinataApiKey: process.env.PINATA_API_KEY || "",
+  pinataSecretKey: process.env.PINATA_SECRET_KEY || "",
 };

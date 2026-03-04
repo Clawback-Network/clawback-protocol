@@ -2,6 +2,8 @@ import { Router } from "express";
 import { Op, fn, col } from "sequelize";
 import { Agent } from "../models/Agent.js";
 import { Snapshot } from "../models/Snapshot.js";
+import { CreditLineModel } from "../models/CreditLine.js";
+import { CreditBacking } from "../models/CreditBacking.js";
 import { readLimiter } from "../middleware/rateLimit.js";
 
 export const statsRouter = Router();
@@ -20,47 +22,28 @@ export function clearStatsCache() {
 async function computeLiveStats() {
   const totalAgents = await Agent.count();
 
-  const agents = await Agent.findAll({
-    attributes: ["skills"],
-  });
-
-  const skillCounts = new Map<string, number>();
-  for (const agent of agents) {
-    if (Array.isArray(agent.skills)) {
-      for (const skill of agent.skills) {
-        skillCounts.set(skill, (skillCounts.get(skill) || 0) + 1);
-      }
-    }
-  }
-
-  const topSkills = [...skillCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([skill]) => skill);
-
-  // Count unique skills across all agents
-  const allSkills = new Set<string>();
-  for (const agent of agents) {
-    if (Array.isArray(agent.skills)) {
-      for (const skill of agent.skills) {
-        allSkills.add(skill);
-      }
-    }
-  }
-  const uniqueSkills = allSkills.size;
-
-  // Sum messages_sent across all agents
-  const msgResult = (await Agent.findOne({
-    attributes: [[fn("COALESCE", fn("SUM", col("messages_sent")), 0), "total"]],
+  // Credit line stats
+  const totalCreditLines = await CreditLineModel.count();
+  const creditAgg = (await CreditLineModel.findOne({
+    attributes: [
+      [fn("COALESCE", fn("SUM", col("total_backing")), 0), "total_backing"],
+      [fn("COALESCE", fn("SUM", col("total_drawn")), 0), "total_drawn"],
+    ],
     raw: true,
-  })) as unknown as { total: number } | null;
-  const totalMessages = Number(msgResult?.total ?? 0);
+  })) as unknown as { total_backing: number; total_drawn: number } | null;
+
+  const activeCreditAssessors = await CreditBacking.count({
+    where: { active: true },
+    distinct: true,
+    col: "assessor_addr",
+  });
 
   return {
     totalAgents,
-    topSkills,
-    uniqueSkills,
-    totalMessages,
+    totalCreditLines,
+    totalCreditBacking: Number(creditAgg?.total_backing ?? 0),
+    totalCreditDrawn: Number(creditAgg?.total_drawn ?? 0),
+    activeCreditAssessors,
   };
 }
 
@@ -83,38 +66,12 @@ statsRouter.get("/", readLimiter, async (_req, res, next) => {
     });
 
     if (snapshot) {
-      // Compute live unique skills count
-      const agents = await Agent.findAll({ attributes: ["skills"] });
-      const allSkills = new Set<string>();
-      for (const agent of agents) {
-        if (Array.isArray(agent.skills)) {
-          for (const skill of agent.skills) {
-            allSkills.add(skill);
-          }
-        }
-      }
-
-      // Compute live total messages
-      const msgResult = (await Agent.findOne({
-        attributes: [
-          [fn("COALESCE", fn("SUM", col("messages_sent")), 0), "total"],
-        ],
-        raw: true,
-      })) as unknown as { total: number } | null;
-
       data = {
         totalAgents: snapshot.total_agents,
-        topSkills: snapshot.top_skills,
-        uniqueSkills: allSkills.size,
-        totalMessages: Number(msgResult?.total ?? 0),
-        totalLoans: snapshot.total_loans,
-        loansCompleted: snapshot.loans_completed,
-        loansDefaulted: snapshot.loans_defaulted,
-        totalBorrowed: snapshot.total_borrowed,
-        totalRepaid: snapshot.total_repaid,
-        activeAssessors: snapshot.active_assessors,
-        avgAccuracyScore: snapshot.avg_accuracy_score,
-        totalStaked: snapshot.total_staked,
+        totalCreditLines: snapshot.total_credit_lines,
+        totalCreditBacking: snapshot.total_credit_backing,
+        totalCreditDrawn: snapshot.total_credit_drawn,
+        activeCreditAssessors: snapshot.active_credit_assessors,
         capturedAt: snapshot.captured_at.toISOString(),
       };
     } else {
@@ -154,15 +111,9 @@ statsRouter.get("/history", readLimiter, async (req, res, next) => {
 
     const history = [...byDay.values()].map((s) => ({
       totalAgents: s.total_agents,
-      messagesReported: s.messages_reported,
-      totalLoans: s.total_loans,
-      loansCompleted: s.loans_completed,
-      loansDefaulted: s.loans_defaulted,
-      totalBorrowed: s.total_borrowed,
-      totalRepaid: s.total_repaid,
-      activeAssessors: s.active_assessors,
-      avgAccuracyScore: s.avg_accuracy_score,
-      totalStaked: s.total_staked,
+      totalCreditLines: s.total_credit_lines,
+      totalCreditBacking: s.total_credit_backing,
+      totalCreditDrawn: s.total_credit_drawn,
       capturedAt: s.captured_at.toISOString(),
     }));
 

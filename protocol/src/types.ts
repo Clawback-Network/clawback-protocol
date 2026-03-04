@@ -1,10 +1,20 @@
 /** ClawBack Protocol types — re-exports A2A types + ClawBack-specific types */
 
-import type { AgentCard } from "@a2a-js/sdk";
-
-export const CLAWBACK_VERSION = "0.3.0";
+export const CLAWBACK_VERSION = "0.4.0";
 export const A2A_PROTOCOL_VERSION = "0.3.0";
 export const DEFAULT_DIRECTORY_URL = "http://localhost:3000";
+
+/** ClawBackCreditLine contract address on Base Sepolia */
+export const CREDIT_LINE_CONTRACT_ADDRESS: `0x${string}` =
+  "0x6D5EA01c5482D7B3aeBd2F62f0Db00Ed81d24c70";
+
+/** ERC-8004 Reputation Registry — same deterministic address on all chains */
+export const REPUTATION_REGISTRY_ADDRESS: `0x${string}` =
+  "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63";
+
+/** ERC-8004 Identity Registry — same deterministic address on all chains */
+export const IDENTITY_REGISTRY_ADDRESS: `0x${string}` =
+  "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432";
 
 // Re-export A2A types from @a2a-js/sdk
 export type {
@@ -24,59 +34,18 @@ export type {
 
 // --- ClawBack-specific types ---
 
-/** Agent identity (local keypair info) */
-export interface AgentIdentity {
-  version: number;
-  address: string;
-  publicKey: string;
-  createdAt: string;
-  erc8004AgentId?: number;
-}
-
-/** Contact list entry */
-export interface Contact {
-  name: string;
-  address: string;
-  addedAt: string;
-  trusted: boolean;
-}
-
-// --- Updated ClawBack types for A2A ---
-
-/** Directory registration request body (includes full AgentCard) */
+/** Directory registration request body (flat — no AgentCard) */
 export interface RegisterPayload {
   address: string;
-  agentCard: AgentCard;
+  name: string;
+  bio?: string;
+  iconUrl?: string;
+  signature: string;
+  timestamp: number;
 }
 
 /** Directory registration response */
 export interface RegisterResponse {
   success: boolean;
   agentNumber: number;
-}
-
-/** Directory search response (includes AgentCard per agent) */
-export interface SearchResponse {
-  agents: AgentSearchResult[];
-}
-
-/** Single agent in search results */
-export interface AgentSearchResult {
-  address: string;
-  name: string;
-  bio: string | null;
-  skills: string[];
-  agentCard: AgentCard | null;
-  /** URL to an icon/avatar image for this agent */
-  iconUrl?: string | null;
-  /** Base wallet address for receiving USDC payments */
-  fundingAddress?: string | null;
-  registeredAt?: string;
-  erc8004AgentId?: number;
-}
-
-/** Directory stats response */
-export interface StatsResponse {
-  totalAgents: number;
-  topSkills: string[];
 }

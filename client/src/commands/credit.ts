@@ -1,221 +1,196 @@
-import { encodeFunctionData } from "viem";
 import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
-import { createWalletProvider } from "../wallet/factory.js";
-import { clawBackCreditLineAbi } from "../wallet/abi.js";
-import {
-  parseUsdc,
-  aprToBps,
-  approveUsdc,
-  waitForTx,
-} from "../wallet/helpers.js";
 
 const getDirectoryUrl = () =>
   process.env.CLAWBACK_DIRECTORY_URL || DEFAULT_DIRECTORY_URL;
 
-function getCreditContractAddress(): `0x${string}` {
-  const addr = process.env.CREDIT_LINE_CONTRACT_ADDRESS;
-  if (!addr) {
-    throw new Error(
-      "CREDIT_LINE_CONTRACT_ADDRESS is required. Set it to the ClawBackCreditLine contract address.",
-    );
-  }
-  return addr as `0x${string}`;
-}
+// ─── Write Commands (API → sign-ready payloads) ─────────────
 
-// ─── Assessor Commands (on-chain) ─────────────────────────────────
-
-/** clawback credit back <address> — back an agent with USDC */
+/** clawback credit back <address> --from <addr> --amount <usdc> --apr <rate> */
 export async function backCommand(
   borrower: string,
-  options: { amount: string; apr: string },
+  options: { from: string; amount: string; apr: string },
 ): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const amount = parseUsdc(parseFloat(options.amount));
-    const apr = aprToBps(parseFloat(options.apr));
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-
-    // Approve USDC transfer
-    console.log(`Approving ${options.amount} USDC...`);
-    const approveTx = await approveUsdc(wallet, contractAddress, amount);
-    console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
-    await waitForTx(approveTx);
-
-    // Back agent
-    console.log(
-      `Backing ${borrower} with ${options.amount} USDC at ${options.apr}% APR...`,
-    );
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "backAgent",
-      args: [borrower as `0x${string}`, amount, apr],
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/back`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+        amount: parseFloat(options.amount),
+        apr: parseFloat(options.apr),
+      }),
     });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error(`Failed to back agent: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }
 
-/** clawback credit adjust <address> — adjust backing amount/APR */
+/** clawback credit adjust <address> --from <addr> --amount <usdc> --apr <rate> */
 export async function adjustBackingCommand(
   borrower: string,
-  options: { amount: string; apr: string },
+  options: { from: string; amount: string; apr: string },
 ): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const newAmount = parseUsdc(parseFloat(options.amount));
-    const newApr = aprToBps(parseFloat(options.apr));
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-
-    // If increasing, approve additional USDC
-    console.log(`Approving USDC (for potential increase)...`);
-    const approveTx = await approveUsdc(wallet, contractAddress, newAmount);
-    console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
-    await waitForTx(approveTx);
-
-    console.log(`Adjusting backing for ${borrower}...`);
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "adjustBacking",
-      args: [borrower as `0x${string}`, newAmount, newApr],
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/adjust`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+        amount: parseFloat(options.amount),
+        apr: parseFloat(options.apr),
+      }),
     });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error(`Failed to adjust backing: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }
 
-/** clawback credit withdraw <address> — withdraw all backing */
-export async function withdrawBackingCommand(borrower: string): Promise<void> {
+/** clawback credit withdraw <address> --from <addr> */
+export async function withdrawBackingCommand(
+  borrower: string,
+  options: { from: string },
+): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-    console.log(`Withdrawing backing from ${borrower}...`);
-
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "withdrawBacking",
-      args: [borrower as `0x${string}`],
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/withdraw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+      }),
     });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error(`Failed to withdraw backing: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }
 
-// ─── Borrower Commands (on-chain) ─────────────────────────────────
-
-/** clawback credit draw — draw from credit line */
-export async function drawCommand(options: { amount: string }): Promise<void> {
-  try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const amount = parseUsdc(parseFloat(options.amount));
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-    console.log(`Drawing ${options.amount} USDC from credit line...`);
-
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "draw",
-      args: [amount],
-    });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
-  } catch (err) {
-    console.error(`Failed to draw: ${(err as Error).message}`);
-  }
-}
-
-/** clawback credit repay — repay credit line */
-export async function creditRepayCommand(options: {
+/** clawback credit draw --from <addr> --amount <usdc> */
+export async function drawCommand(options: {
+  from: string;
   amount: string;
 }): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const amount = parseUsdc(parseFloat(options.amount));
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-
-    // Approve USDC
-    console.log(`Approving ${options.amount} USDC...`);
-    const approveTx = await approveUsdc(wallet, contractAddress, amount);
-    console.log(`  Approve tx: https://basescan.org/tx/${approveTx}`);
-    await waitForTx(approveTx);
-
-    console.log(`Repaying ${options.amount} USDC...`);
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "repay",
-      args: [amount],
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/draw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        amount: parseFloat(options.amount),
+      }),
     });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error(`Failed to repay: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }
 
-/** clawback credit register-agent — register ERC-8004 agent ID */
-export async function registerAgentIdCommand(options: {
-  agentId: string;
+/** clawback credit repay --from <addr> --amount <usdc> */
+export async function creditRepayCommand(options: {
+  from: string;
+  amount: string;
 }): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const contractAddress = getCreditContractAddress();
-
-    const agentId = BigInt(parseInt(options.agentId, 10));
-
-    const address = await wallet.getAddress();
-    console.log(`Wallet: ${address}`);
-    console.log(`Registering ERC-8004 agent ID: ${options.agentId}...`);
-
-    const data = encodeFunctionData({
-      abi: clawBackCreditLineAbi,
-      functionName: "registerAgentId",
-      args: [agentId],
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/repay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        amount: parseFloat(options.amount),
+      }),
     });
-
-    const txHash = await wallet.sendTransaction({ to: contractAddress, data });
-    console.log(`  Tx: https://basescan.org/tx/${txHash}`);
-    await waitForTx(txHash);
-    console.log("Done.");
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error(`Failed to register agent ID: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
+/** clawback credit register-8004 --name <name> --description <desc> */
+export async function register8004Command(options: {
+  name: string;
+  description?: string;
+}): Promise<void> {
+  try {
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/register-8004`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: options.name,
+        description: options.description,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
+/** clawback credit feedback <address> --from <addr> --score <0-100> --analysis <json> */
+export async function feedbackCommand(
+  borrower: string,
+  options: { from: string; score: string; analysis: string },
+): Promise<void> {
+  try {
+    let analysisObj: unknown;
+    try {
+      analysisObj = JSON.parse(options.analysis);
+    } catch {
+      console.error("Invalid JSON for --analysis");
+      return;
+    }
+
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+        score: parseInt(options.score, 10),
+        analysis: analysisObj,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }
 
@@ -230,7 +205,6 @@ interface CreditLineResponse {
   blended_apr: number;
   status: string;
   backer_count: number;
-  agent_id?: number;
   backings?: Array<{
     assessor_addr: string;
     max_amount: number;
@@ -267,8 +241,6 @@ export async function creditLineCommand(address: string): Promise<void> {
     console.log(`  Interest Paid:   ${cl.total_interest_paid} USDC`);
     console.log(`  Status:          ${cl.status}`);
     console.log(`  Backers:         ${cl.backer_count}`);
-    if (cl.agent_id) console.log(`  ERC-8004 ID:     ${cl.agent_id}`);
-
     if (cl.backings?.length) {
       console.log(`\n  Backers:`);
       for (const b of cl.backings) {
@@ -296,11 +268,9 @@ interface BackingsResponse {
   agents_backed: number;
 }
 
-/** clawback credit my-backings — view your backing positions */
-export async function myBackingsCommand(): Promise<void> {
+/** clawback credit backings <address> — view backing positions for an address */
+export async function backingsCommand(address: string): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const address = await wallet.getAddress();
     const directoryUrl = getDirectoryUrl();
 
     const res = await fetch(`${directoryUrl}/credit/backers/${address}`);
@@ -311,7 +281,7 @@ export async function myBackingsCommand(): Promise<void> {
 
     const data = (await res.json()) as BackingsResponse;
 
-    console.log(`=== Your Backing Positions ===\n`);
+    console.log(`=== Backing Positions: ${address} ===\n`);
     console.log(`  Total Backed:   ${data.total_backed} USDC`);
     console.log(`  Total Exposure: ${data.total_exposure} USDC`);
     console.log(`  Agents Backed:  ${data.agents_backed}\n`);
@@ -331,13 +301,65 @@ export async function myBackingsCommand(): Promise<void> {
   }
 }
 
-/** clawback credit my-line — view your credit line */
-export async function myCreditCommand(): Promise<void> {
+// ─── Event Labels ────────────────────────────────────────────────
+const EVENT_LABELS: Record<string, string> = {
+  agent_backed: "Backed",
+  backing_adjusted: "Adjusted",
+  backing_withdrawn: "Withdrawn",
+  credit_drawn: "Draw",
+  repayment_made: "Repayment",
+  credit_line_defaulted: "Defaulted",
+  interest_claimed: "Interest Claimed",
+};
+
+interface CreditEventResponse {
+  events: Array<{
+    event_type: string;
+    borrower_addr: string;
+    assessor_addr: string | null;
+    amount: number | null;
+    apr: number | null;
+    block_number: number;
+    tx_hash: string;
+    event_timestamp: string;
+  }>;
+  total: number;
+}
+
+/** clawback credit events <address> — view recent credit events */
+export async function eventsCommand(address: string): Promise<void> {
   try {
-    const wallet = createWalletProvider();
-    const address = await wallet.getAddress();
-    await creditLineCommand(address);
+    const directoryUrl = getDirectoryUrl();
+
+    const res = await fetch(
+      `${directoryUrl}/credit/events/${address}?limit=20`,
+    );
+    if (!res.ok) {
+      console.error(`Request failed: ${res.status} ${res.statusText}`);
+      return;
+    }
+
+    const data = (await res.json()) as CreditEventResponse;
+
+    console.log(`=== Credit Events for ${address} ===\n`);
+    console.log(`  Total events: ${data.total}\n`);
+
+    if (data.events.length === 0) {
+      console.log("  No events found.");
+      return;
+    }
+
+    for (const e of data.events) {
+      const label = EVENT_LABELS[e.event_type] ?? e.event_type;
+      const ts = new Date(e.event_timestamp).toLocaleString();
+      const amountStr = e.amount != null ? ` ${e.amount} USDC` : "";
+      const aprStr = e.apr != null ? ` @ ${e.apr}%` : "";
+      const counterparty = e.assessor_addr
+        ? ` (assessor: ${e.assessor_addr.slice(0, 10)}...)`
+        : "";
+      console.log(`  [${ts}] ${label}${amountStr}${aprStr}${counterparty}`);
+    }
   } catch (err) {
-    console.error(`Failed: ${(err as Error).message}`);
+    console.error(`Could not reach directory: ${(err as Error).message}`);
   }
 }

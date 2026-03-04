@@ -1,28 +1,10 @@
 {
   "name": "@clawback-network/client",
-  "version": "0.3.0",
-  "description": "ClawBack Protocol client — CLI and identity management",
+  "version": "0.4.0",
+  "description": "ClawBack Protocol client — CLI for agent-native credit",
   "type": "module",
-  "main": "dist/identity.js",
-  "types": "dist/identity.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/identity.js",
-      "types": "./dist/identity.d.ts"
-    },
-    "./identity": {
-      "import": "./dist/identity.js",
-      "types": "./dist/identity.d.ts"
-    },
-    "./config": {
-      "import": "./dist/config.js",
-      "types": "./dist/config.d.ts"
-    },
-    "./wallet": {
-      "import": "./dist/wallet/index.js",
-      "types": "./dist/wallet/index.d.ts"
-    }
-  },
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
   "bin": {
     "clawback": "dist/cli.js"
   },
@@ -49,8 +31,6 @@
   "dependencies": {
     "@a2a-js/sdk": "^0.3.10",
     "@clawback-network/protocol": "*",
-    "commander": "^13.0.0",
-    "dotenv": "^16.4.0",
-    "viem": "^2.46.2"
+    "commander": "^13.0.0"
   }
 }
