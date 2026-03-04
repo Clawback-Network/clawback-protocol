@@ -9,15 +9,16 @@
 
 ---
 
-ClawBack is a credit protocol where assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. Interest accrues per-backer at individual APRs. ERC-8004 reputation data is auto-fetched from 8004scan.io.
+ClawBack is a credit protocol where assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. All allocation — draws, interest, and repayments — is handled pro-rata across backers, following the syndicated lending standard. ERC-8004 reputation data is auto-fetched from 8004scan.io.
 
 ## Why ClawBack?
 
 1. **Agent-native credit** — Agents back, draw, and repay revolving credit lines via CLI
-2. **Assessor-backed** — Multiple assessors back each borrower with individual amounts and APRs
-3. **On-chain** — ClawBackCreditLine smart contract on Base L2, indexed into the directory
-4. **ERC-8004 reputation** — On-chain identity and credit feedback via the ERC-8004 standard
-5. **Unsigned tx payloads** — All write commands return `{ transactions: [{ to, data }] }` for external signing
+2. **Assessor-backed** — Multiple assessors back each borrower, each setting their own amount and APR
+3. **Pro-rata fairness** — Draws and repayments are distributed proportionally across all backers, ensuring equal treatment regardless of rate
+4. **On-chain** — ClawBackCreditLine smart contract on Base L2, indexed into the directory
+5. **ERC-8004 reputation** — On-chain identity and credit feedback via the ERC-8004 standard
+6. **Unsigned tx payloads** — All write commands return `{ transactions: [{ to, data }] }` for external signing
 
 ## Architecture
 
@@ -180,13 +181,33 @@ Sign and submit with your preferred wallet. USDC approval transactions are autom
      ▼                                     ▼
 ```
 
-Each credit line has:
+## How Credit Lines Work
 
-- **Multiple backers** — each sets their own max exposure and APR
-- **Blended APR** — weighted average of all backer rates
-- **Pro-rata allocation** — draws and repayments distributed across backers by capacity
-- **30-day grace period** — no repayment for 30 days triggers permissionless default
-- **ERC-8004 feedback** — assessors can publish credit analysis on-chain via IPFS
+Each credit line can have up to 20 backers. Each backer sets their own max USDC exposure and APR independently.
+
+### Pro-Rata Allocation
+
+All allocation follows the **syndicated lending standard** — pro-rata treatment across all backers:
+
+- **Draws** are allocated proportionally by each backer's available capacity (maxAmount - drawnAmount). If Backer A has 80% of the available credit and Backer B has 20%, a draw allocates 80/20 regardless of their APRs.
+- **Interest** accrues independently per backer based on their individual drawnAmount and APR: `interest = drawnAmount × APR × elapsed / year`. Each backer earns at their own rate on the capital they've lent out.
+- **Repayments** go interest-first, then principal — both distributed pro-rata. Interest is paid proportionally by each backer's accrued interest. Principal is paid proportionally by each backer's drawnAmount. Interest payments are sent directly to backers on-chain.
+
+This means all backers share risk equally relative to their commitment size. A backer offering 5% APR gets the same utilization ratio as one offering 15% — there is no preferential treatment based on rate. This prevents the perverse incentive where cheap backers bear disproportionate risk.
+
+### Default
+
+If no repayment is made for 30 days, anyone can trigger a permissionless default:
+
+- Backers lose their drawn amounts (the USDC already sent to the borrower)
+- Undrawn capital is returned to backers
+- Accrued (unpaid) interest is forfeited — it was never funded
+- Credit line is permanently marked as defaulted
+- `CreditLineDefaulted` event emitted on-chain for reputation systems
+
+### ERC-8004 Feedback
+
+Assessors can publish credit analysis on-chain via the ERC-8004 Reputation Registry. Analysis JSON is pinned to IPFS, and a `giveFeedback` transaction records the score and IPFS URI on-chain.
 
 ## Directory API
 
