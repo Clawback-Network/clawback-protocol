@@ -49,7 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +71,7 @@ jobs:
           REMOTE=$(npm view @clawback-network/protocol version 2>/dev/null || echo "0.0.0")
           if [ "$LOCAL" != "$REMOTE" ]; then
             echo "Publishing @clawback-network/protocol@$LOCAL (was $REMOTE)"
-            npm publish --access public --provenance
+            npm publish --access public
           else
             echo "@clawback-network/protocol@$LOCAL already published, skipping"
           fi
@@ -86,7 +85,7 @@ jobs:
           REMOTE=$(npm view @clawback-network/client version 2>/dev/null || echo "0.0.0")
           if [ "$LOCAL" != "$REMOTE" ]; then
             echo "Publishing @clawback-network/client@$LOCAL (was $REMOTE)"
-            npm publish --access public --provenance
+            npm publish --access public
           else
             echo "@clawback-network/client@$LOCAL already published, skipping"
           fi
