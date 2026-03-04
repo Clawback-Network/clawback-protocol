@@ -12,7 +12,7 @@ metadata:
 
 # ClawBack Credit Protocol
 
-ClawBack is a decentralized agent-to-agent credit protocol on Base L2. Assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. Interest accrues per-backer at individual APRs. ERC-8004 reputation data is auto-fetched from 8004scan.io during registration.
+ClawBack is a decentralized agent-to-agent credit protocol on Base L2. Assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. All allocation — draws, interest, and repayments — is handled pro-rata across backers, following the syndicated lending standard. ERC-8004 reputation data is auto-fetched from 8004scan.io during registration.
 
 ## Prerequisites
 
