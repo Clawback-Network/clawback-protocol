@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { Op } from "sequelize";
+import { verifyMessage } from "viem";
 import { registerPayloadSchema } from "@clawback-network/protocol";
-import type { AgentCard } from "@a2a-js/sdk";
 import { Agent } from "../models/Agent.js";
-import { AgentLendingMetrics } from "../models/AgentLendingMetrics.js";
 import { CreditLineModel } from "../models/CreditLine.js";
 import { CreditBacking } from "../models/CreditBacking.js";
 import {
@@ -11,55 +10,80 @@ import {
   searchLimiter,
   readLimiter,
 } from "../middleware/rateLimit.js";
+import { fetchErc8004Profile } from "../services/erc8004.js";
+import { config } from "../config.js";
+
+const SIGNATURE_MAX_AGE_SECONDS = 300; // 5 minutes
 
 export const agentsRouter = Router();
 
 /**
  * POST /agents/register
- * Register or update an agent profile with an AgentCard.
+ * Register or update an agent profile (flat payload).
  */
 agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
   try {
     const body = registerPayloadSchema.parse(req.body);
     const addr = body.address.toLowerCase();
-    const agentCard: AgentCard = body.agentCard;
 
-    // Extract flat fields from AgentCard for search/stats compat
-    const name = agentCard.name;
-    const description = agentCard.description || null;
-    const skillTags = agentCard.skills.flatMap((s) => s.tags);
-    const iconUrl = (agentCard as unknown as Record<string, unknown>)
-      .iconUrl as string | undefined;
-    const fundingAddress = (agentCard as unknown as Record<string, unknown>)
-      .fundingAddress as string | undefined;
+    // Verify signature proves ownership of the address
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - body.timestamp) > SIGNATURE_MAX_AGE_SECONDS) {
+      res
+        .status(401)
+        .json({ error: "Signature expired — timestamp too old or too far in the future" });
+      return;
+    }
+
+    const message = `clawback-register:${addr}:${body.timestamp}`;
+    let valid = false;
+    try {
+      valid = await verifyMessage({
+        address: addr as `0x${string}`,
+        message,
+        signature: body.signature as `0x${string}`,
+      });
+    } catch {
+      // verifyMessage throws on malformed signatures
+    }
+
+    if (!valid) {
+      res.status(401).json({ error: "Invalid signature — does not match address" });
+      return;
+    }
 
     let agent = await Agent.findByPk(addr);
 
     if (agent) {
       await agent.update({
-        name,
-        bio: description,
-        skills: skillTags,
-        version: agentCard.protocolVersion ?? agent.version,
-        clawback_version: agentCard.version || agent.clawback_version,
-        agent_card: agentCard,
-        icon_url: iconUrl || agent.icon_url,
-        funding_address: fundingAddress || agent.funding_address,
+        name: body.name,
+        bio: body.bio ?? agent.bio,
+        icon_url: body.iconUrl ?? agent.icon_url,
       });
     } else {
       agent = await Agent.create({
         address: addr,
-        name,
-        bio: description,
-        skills: skillTags,
-        version: agentCard.protocolVersion || null,
-        clawback_version: agentCard.version || null,
-        agent_card: agentCard,
-        messages_sent: 0,
-        icon_url: iconUrl || null,
-        funding_address: fundingAddress || null,
+        name: body.name,
+        bio: body.bio ?? null,
+        country: null,
+        icon_url: body.iconUrl ?? null,
+        erc8004_profile: null,
       });
     }
+
+    // Fetch ERC-8004 data in background (don't block response)
+    fetchErc8004Profile(addr, config.chainId)
+      .then(async (profile) => {
+        if (profile) {
+          await Agent.update(
+            { erc8004_profile: profile as unknown as Record<string, unknown> },
+            { where: { address: addr } },
+          );
+        }
+      })
+      .catch((err) =>
+        console.warn("[erc8004] Lookup failed:", (err as Error).message),
+      );
 
     const totalAgents = await Agent.count();
 
@@ -71,7 +95,7 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
 
 /**
  * GET /agents/search
- * Search agents by query text or online status.
+ * Search agents by query text.
  */
 agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
   try {
@@ -111,10 +135,7 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
           address: a.address,
           name: a.name,
           bio: a.bio,
-          skills: a.skills,
-          agentCard: a.agent_card,
           iconUrl: a.icon_url ?? null,
-          fundingAddress: a.funding_address ?? null,
           registeredAt: a.createdAt?.toISOString(),
           country: a.country ?? null,
           creditLine: cl
@@ -127,46 +148,13 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
                 backer_count: cl.backer_count,
               }
             : null,
-          erc8004: cl?.agent_id ? { agentId: cl.agent_id } : null,
+          erc8004Profile: a.erc8004_profile ?? null,
         };
       }),
       total,
       limit,
       offset,
     });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * GET /agents/:address/lending
- * Get lending metrics for an agent.
- */
-agentsRouter.get("/:address/lending", readLimiter, async (req, res, next) => {
-  try {
-    const addr = (req.params.address as string).toLowerCase();
-    const metrics = await AgentLendingMetrics.findByPk(addr);
-
-    if (!metrics) {
-      res.json({
-        agent_address: addr,
-        loans_requested: 0,
-        loans_completed: 0,
-        loans_defaulted: 0,
-        total_borrowed: 0,
-        total_repaid: 0,
-        assessments_made: 0,
-        accuracy_score: 0.5,
-        total_staked: 0,
-        total_earned: 0,
-        total_lost: 0,
-        blacklisted: false,
-      });
-      return;
-    }
-
-    res.json(metrics);
   } catch (err) {
     next(err);
   }
@@ -210,24 +198,49 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
       };
     }
 
-    // ERC-8004 data
-    const erc8004 = creditLine?.agent_id
-      ? { agentId: creditLine.agent_id }
-      : null;
-
     res.json({
       address: agent.address,
       name: agent.name,
       bio: agent.bio,
-      skills: agent.skills,
-      agentCard: agent.agent_card,
       registeredAt: agent.createdAt?.toISOString(),
       country: agent.country ?? null,
-      fundingAddress: agent.funding_address ?? null,
+      erc8004Profile: agent.erc8004_profile ?? null,
       creditLine: creditData,
-      erc8004,
     });
   } catch (err) {
     next(err);
   }
 });
+
+/**
+ * GET /agents/:address/erc8004/refresh
+ * Re-fetch ERC-8004 data for an agent.
+ */
+agentsRouter.get(
+  "/:address/erc8004/refresh",
+  readLimiter,
+  async (req, res, next) => {
+    try {
+      const addr = (req.params.address as string).toLowerCase();
+      const agent = await Agent.findByPk(addr);
+      if (!agent) {
+        res.status(404).json({ error: "Agent not found" });
+        return;
+      }
+
+      const profile = await fetchErc8004Profile(addr, config.chainId);
+      if (profile) {
+        await agent.update({
+          erc8004_profile: profile as unknown as Record<string, unknown>,
+        });
+      }
+
+      res.json({
+        address: addr,
+        erc8004Profile: profile ?? null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

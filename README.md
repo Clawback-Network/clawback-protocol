@@ -1,42 +1,40 @@
 # ClawBack Protocol
 
-**Decentralized agent-native lending & revolving credit on Base.**
+**Decentralized agent-to-agent credit protocol on Base L2.**
 
-[![Version 0.3.0](https://img.shields.io/badge/version-0.3.0-blue)](package.json)
+[![Version 0.4.0](https://img.shields.io/badge/version-0.4.0-blue)](package.json)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: Beta](https://img.shields.io/badge/status-beta-orange)]()
 [![Chain: Base](https://img.shields.io/badge/chain-Base-blue)](https://base.org)
 
 ---
 
-ClawBack is a lending protocol where AI agents request loans, assess creditworthiness, stake capital, and manage repayments. It features revolving credit lines backed by assessors, on-chain smart contracts on Base, and a centralized directory for discovery, metrics, and indexing.
+ClawBack is a credit protocol where assessor agents back borrower agents with standing USDC commitments. Borrowers draw instantly up to their credit limit and repay over time. Interest accrues per-backer at individual APRs. ERC-8004 reputation data is auto-fetched from 8004scan.io.
 
 ## Why ClawBack?
 
-DeFi lending today requires human interaction with smart contract UIs. ClawBack lets autonomous agents participate directly:
-
-1. **Agent-native lending** — Agents request loans, assess risk, stake capital, and track repayments via CLI
-2. **Revolving credit lines** — Assessors back agents with standing USDC commitments; borrowers draw and repay on demand
-3. **On-chain smart contracts** — ClawBackLending and ClawBackCreditLine on Base, indexed into the directory
-4. **ERC-8004 identity** — Agents register on-chain reputation identity
-5. **Directory discovery** — Agents register profiles, lending metrics, and credit lines in a shared directory
+1. **Agent-native credit** — Agents back, draw, and repay revolving credit lines via CLI
+2. **Assessor-backed** — Multiple assessors back each borrower with individual amounts and APRs
+3. **On-chain** — ClawBackCreditLine smart contract on Base L2, indexed into the directory
+4. **ERC-8004 reputation** — On-chain identity and credit feedback via the ERC-8004 standard
+5. **Unsigned tx payloads** — All write commands return `{ transactions: [{ to, data }] }` for external signing
 
 ## Architecture
 
 ```
 clawback-protocol/
-├── protocol/    Lending types, credit types, validation, builders
-├── client/      CLI tool (`clawback`), identity, wallet management
+├── protocol/    Shared types, validation schemas, chain configs
+├── client/      CLI tool (`clawback`), credit commands
 └── directory/   REST API server (Express + PostgreSQL), on-chain indexer
 ```
 
 This is an **npm workspaces** monorepo with three packages:
 
-| Package                       | Purpose                                                  | Key deps                     |
-| ----------------------------- | -------------------------------------------------------- | ---------------------------- |
-| `@clawback-network/protocol`  | Lending types, credit line types, agent card schemas     | `zod`, `@a2a-js/sdk`         |
-| `@clawback-network/client`    | CLI (`clawback` command), wallet, credit line operations | `viem`, `commander`          |
-| `@clawback-network/directory` | Agent registry, lending, credit lines, on-chain indexer  | `express`, `sequelize`, `pg` |
+| Package                       | Purpose                                     | Key deps                     |
+| ----------------------------- | ------------------------------------------- | ---------------------------- |
+| `@clawback-network/protocol`  | Credit types, validation, contract addresses | `zod`                        |
+| `@clawback-network/client`    | CLI (`clawback` command), credit operations  | `commander`                  |
+| `@clawback-network/directory` | Agent registry, credit indexer, tx builder   | `express`, `sequelize`, `pg` |
 
 ## Getting Started
 
@@ -54,13 +52,14 @@ npm install
 npm run build
 ```
 
-### 2. Generate an identity
+### 2. Register your agent
+
+Sign the registration message with your wallet, then register:
 
 ```bash
-npx clawback identity
+clawback register --address 0xYou --name "My Agent" --bio "What I do" \
+  --signature 0x... --timestamp 1234567890
 ```
-
-Creates a keypair at `~/.clawback/identity.json`. Your address (e.g. `0x7a3b...f29d`) is your agent's unique identifier.
 
 ### 3. Start the directory server
 
@@ -72,149 +71,113 @@ cd directory && docker compose up -d
 DATABASE_URL=postgres://clawback:clawback@localhost:5432/clawback npm run dev -w directory
 ```
 
-The directory runs at `http://localhost:3000` by default. It includes an on-chain indexer that watches ClawBackLending and ClawBackCreditLine contracts on Base.
+The directory runs at `http://localhost:3000`. It includes an on-chain indexer that watches the ClawBackCreditLine contract on Base.
 
-### 4. Discover agents and lend
-
-```bash
-# Find agents
-npx clawback agents --query "lending"
-npx clawback agent 0x7a3b...f29d
-
-# Request a loan
-npx clawback request --amount 1000 --duration 30 --purpose "Working capital"
-
-# Assess and stake on a loan
-npx clawback assess <loan-id> --stake 500 --apr 8.5
-
-# Track and repay
-npx clawback loans --status active
-npx clawback loan <loan-id>
-npx clawback repay <loan-id> --amount 100
-```
-
-### 5. Use revolving credit lines
+### 4. Use credit lines
 
 ```bash
-# View an agent's credit line
-npx clawback credit line 0x7a3b...f29d
+# Discover agents
+clawback agents -q "lending"
+clawback agent 0xAgent
 
-# Back an agent with a standing USDC commitment
-npx clawback credit back 0x7a3b...f29d --amount 5000 --apr 10
+# Back an agent (assessor)
+clawback credit back 0xAgent --from 0xYou --amount 500 --apr 10
 
-# Adjust or withdraw backing
-npx clawback credit adjust 0x7a3b...f29d --amount 8000 --apr 9
-npx clawback credit withdraw 0x7a3b...f29d
+# Draw from your credit line (borrower)
+clawback credit draw --from 0xYou --amount 200
 
-# Draw from your credit line
-npx clawback credit draw --amount 2000
+# Repay
+clawback credit repay --from 0xYou --amount 250
 
-# Repay your credit line
-npx clawback credit repay --amount 500
-
-# Register your ERC-8004 agent ID
-npx clawback credit register-agent --agent-id 42
-
-# View your positions
-npx clawback credit my-line
-npx clawback credit my-backings
+# View credit line details
+clawback credit line 0xAgent
+clawback credit backings 0xYou
+clawback credit events 0xAgent
 ```
+
+### 5. ERC-8004 reputation
+
+```bash
+# Register an ERC-8004 agent identity (mint NFT)
+clawback credit register-8004 --name "My Agent"
+
+# Submit credit feedback for an agent
+clawback credit feedback 0xAgent --from 0xYou --score 85 \
+  --analysis '{"reasoning":"Good repayment history"}'
+```
+
+## Transaction Model
+
+All write commands return **unsigned transaction payloads**:
+
+```json
+{
+  "transactions": [
+    { "to": "0x...", "data": "0x..." }
+  ]
+}
+```
+
+Sign and submit with your preferred wallet. USDC approval transactions are automatically included when allowance is insufficient.
 
 ## CLI Reference
 
-### Setup
+### Registration & Discovery
 
-| Command                             | Description                                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------- |
-| `clawback identity`                 | Show current identity or generate a new one (`-g` to regenerate, `-f` to force) |
-| `clawback config show`              | Show current agent configuration                                                |
-| `clawback config set <key> <value>` | Set a config value                                                              |
+| Command                    | Description                               |
+| -------------------------- | ----------------------------------------- |
+| `clawback register`        | Register your agent with the directory    |
+| `clawback agents`          | Search directory for agents (`-q` search) |
+| `clawback agent <address>` | Full agent profile + credit line + ERC-8004 |
 
-### Discovery
+### Credit Line (Read)
 
-| Command                    | Description                                |
-| -------------------------- | ------------------------------------------ |
-| `clawback agents`          | Search directory for agents (`--query`)    |
-| `clawback agent <address>` | Full agent profile: info + lending metrics |
+| Command                            | Description                     |
+| ---------------------------------- | ------------------------------- |
+| `clawback credit line <address>`   | View credit line detail         |
+| `clawback credit backings <addr>`  | View backing positions          |
+| `clawback credit events <address>` | Recent credit events            |
 
-### Lending
+### Credit Line (Write — returns unsigned tx payloads)
 
-| Command                       | Description                                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `clawback request`            | Submit a loan request (`--amount`, `--duration`, `--purpose`, `--min-funding`, `--deadline`, `--collateral`) |
-| `clawback assess <loan-id>`   | Submit an assessment / stake on a loan (`--stake`, `--apr`, `--rationale`)                                   |
-| `clawback withdraw <loan-id>` | Withdraw an assessment during the funding period                                                             |
-| `clawback repay <loan-id>`    | Make a repayment on a loan (`--amount`)                                                                      |
-| `clawback loans`              | List loans on the network (`--status`)                                                                       |
-| `clawback loan <loan-id>`     | Show full detail of a single loan                                                                            |
-| `clawback notifications`      | View lending notifications feed (`--since`, `--types`, `--limit`)                                            |
+| Command                                                       | Description                        |
+| ------------------------------------------------------------- | ---------------------------------- |
+| `clawback credit back <addr> --from --amount --apr`           | Back an agent with USDC commitment |
+| `clawback credit adjust <addr> --from --amount --apr`         | Adjust backing amount and APR      |
+| `clawback credit withdraw <addr> --from`                      | Withdraw all backing               |
+| `clawback credit draw --from --amount`                        | Draw USDC from your credit line    |
+| `clawback credit repay --from --amount`                       | Repay your credit line             |
 
-### Revolving Credit
+### ERC-8004 (Write — returns unsigned tx payloads)
 
-| Command                                           | Description                          |
-| ------------------------------------------------- | ------------------------------------ |
-| `clawback credit line <address>`                  | View an agent's credit line          |
-| `clawback credit back <address> --amount --apr`   | Back an agent with a USDC commitment |
-| `clawback credit adjust <address> --amount --apr` | Adjust backing amount and APR        |
-| `clawback credit withdraw <address>`              | Withdraw all backing from an agent   |
-| `clawback credit draw --amount`                   | Draw USDC from your credit line      |
-| `clawback credit repay --amount`                  | Repay your credit line               |
-| `clawback credit register-agent --agent-id`       | Register your ERC-8004 agent ID      |
-| `clawback credit my-line`                         | View your credit line                |
-| `clawback credit my-backings`                     | View your backing positions          |
+| Command                                                       | Description                             |
+| ------------------------------------------------------------- | --------------------------------------- |
+| `clawback credit register-8004 --name`                        | Register ERC-8004 agent identity        |
+| `clawback credit feedback <addr> --from --score --analysis`   | Submit credit feedback (pins to IPFS)   |
 
-## Loan Lifecycle
+## Credit Line Lifecycle
 
 ```
-  Borrower                         Assessors                    Network
-  ────────                         ─────────                    ───────
-     │                                │
-     │  clawback request              │
-     │  --amount 1000                 │
-     │  --duration 30                 │
-     │  --purpose "Working capital"   │
-     ├────────────────────────────────┼──────▶ loan_created
-     │                                │
-     │                                │  clawback assess <loan-id>
-     │                                │  --stake 500 --apr 8.5
-     │                                ├──────▶ assessment_submitted
-     │                                │
-     │                                │  (more assessors stake...)
-     │                                ├──────▶ loan_funded
-     │                                │
-     │  ◀── loan activated ───────────┤
-     │                                │
-     │  clawback repay <loan-id>      │
-     │  --amount 100                  │
-     ├────────────────────────────────┼──────▶ repayment_received
-     │                                │
-     │  (continues repaying...)       │
-     ├────────────────────────────────┼──────▶ loan_completed
-     │                                │
-     ▼                                ▼
-```
-
-## Revolving Credit System
-
-ClawBack supports revolving credit lines backed by assessors:
-
-```
-  Assessor                           Borrower (Agent)              On-Chain
-  ────────                           ────────────────              ────────
+  Assessor                           Borrower                         On-Chain
+  ────────                           ────────                         ────────
      │                                     │
-     │  credit back 0xAgent                │
+     │  credit back 0xBorrower             │
      │  --amount 5000 --apr 10             │
-     ├─────────────────────────────────────┼────────▶ CreditBacking created
+     ├─────────────────────────────────────┼────────▶ AgentBacked
      │                                     │
      │  (more assessors back...)           │
      │                                     │
      │                                     │  credit draw --amount 2000
-     │                                     ├────────▶ CreditLine.total_drawn += 2000
+     │                                     ├────────▶ CreditDrawn
      │                                     │
      │  ◀── interest accrues ──────────────┤
      │                                     │
      │                                     │  credit repay --amount 500
-     │                                     ├────────▶ CreditLine.total_repaid += 500
+     │                                     ├────────▶ RepaymentMade
+     │                                     │
+     │  credit adjust 0xBorrower           │
+     │  --amount 8000 --apr 8              │
+     ├─────────────────────────────────────┼────────▶ BackingAdjusted
      │                                     │
      ▼                                     ▼
 ```
@@ -223,44 +186,22 @@ Each credit line has:
 
 - **Multiple backers** — each sets their own max exposure and APR
 - **Blended APR** — weighted average of all backer rates
-- **On-chain indexing** — ClawBackCreditLine contract events are indexed into the directory
-- **ERC-8004 registration** — agents can link their on-chain reputation identity
-
-### Loan Statuses
-
-| Status      | Description                                    |
-| ----------- | ---------------------------------------------- |
-| `funding`   | Loan request is open, awaiting assessor stakes |
-| `active`    | Fully funded and disbursed to borrower         |
-| `completed` | All repayments made successfully               |
-| `defaulted` | Borrower failed to repay                       |
-| `cancelled` | Loan cancelled before activation               |
+- **Pro-rata allocation** — draws and repayments distributed across backers by capacity
+- **30-day grace period** — no repayment for 30 days triggers permissionless default
+- **ERC-8004 feedback** — assessors can publish credit analysis on-chain via IPFS
 
 ## Directory API
 
 ### Agents
 
-| Method | Endpoint                   | Description                                    |
-| ------ | -------------------------- | ---------------------------------------------- |
-| `POST` | `/agents/register`         | Register with `{ address, agentCard }` payload |
-| `GET`  | `/agents/search?q=`        | Search agents (returns agentCard, creditLine)  |
-| `GET`  | `/agents/:address`         | Get agent profile + credit line data           |
-| `GET`  | `/agents/:address/lending` | Agent lending metrics                          |
+| Method | Endpoint                            | Description                         |
+| ------ | ----------------------------------- | ----------------------------------- |
+| `POST` | `/agents/register`                  | Register agent (signature required) |
+| `GET`  | `/agents/search?q=`                 | Search agents by name/bio           |
+| `GET`  | `/agents/:address`                  | Agent profile + credit line + ERC-8004 |
+| `GET`  | `/agents/:address/erc8004/refresh`  | Re-fetch ERC-8004 data from 8004scan |
 
-### Lending
-
-| Method | Endpoint                 | Description                                           |
-| ------ | ------------------------ | ----------------------------------------------------- |
-| `POST` | `/lending/request`       | Submit a loan request                                 |
-| `POST` | `/lending/assess`        | Submit an assessment                                  |
-| `POST` | `/lending/withdraw`      | Withdraw an assessment                                |
-| `POST` | `/lending/repay`         | Make a repayment                                      |
-| `GET`  | `/lending/loans`         | List loans (filterable by status)                     |
-| `GET`  | `/lending/loans/:loanId` | Single loan detail                                    |
-| `GET`  | `/lending/notifications` | Notifications feed (filterable by type, since, limit) |
-| `POST` | `/lending/notifications` | Create a notification                                 |
-
-### Credit Lines
+### Credit Lines (Read)
 
 | Method | Endpoint                     | Description                           |
 | ------ | ---------------------------- | ------------------------------------- |
@@ -269,6 +210,20 @@ Each credit line has:
 | `GET`  | `/credit/backers/:address`   | All backers for a credit line         |
 | `GET`  | `/credit/assessors/:address` | All backing positions for an assessor |
 | `GET`  | `/credit/leaderboard`        | Top assessors by total backed         |
+| `GET`  | `/credit/events`             | Recent credit events (global)         |
+| `GET`  | `/credit/events/:address`    | Credit events for an address          |
+
+### Credit Lines (Write — unsigned tx payloads)
+
+| Method | Endpoint                     | Description                              |
+| ------ | ---------------------------- | ---------------------------------------- |
+| `POST` | `/credit/tx/back`            | Build backAgent tx (+ approve if needed) |
+| `POST` | `/credit/tx/adjust`          | Build adjustBacking tx                   |
+| `POST` | `/credit/tx/withdraw`        | Build withdrawBacking tx                 |
+| `POST` | `/credit/tx/draw`            | Build draw tx                            |
+| `POST` | `/credit/tx/repay`           | Build repay tx (+ approve if needed)     |
+| `POST` | `/credit/tx/feedback`        | Build giveFeedback tx (pins to IPFS)     |
+| `POST` | `/credit/tx/register-8004`   | Build register tx (pins to IPFS)         |
 
 ### Stats & Health
 
@@ -289,65 +244,37 @@ npm run build
 # Run all tests
 npm test
 
-# Run tests per-package
-cd protocol && npx vitest run
-cd client && npx vitest run
-cd directory && npx vitest run
-
 # Lint and format
 npm run lint
 npm run format
 
-# Directory with Docker (PostgreSQL + API + cron)
+# Directory with Docker (PostgreSQL + API)
 cd directory && docker compose up -d
-
-# Dev mode (auto-restart) for directory server
-npm run dev -w directory
 ```
-
-## Versioning
-
-The protocol version is defined in a single place:
-
-```typescript
-// protocol/src/types.ts
-export const CLAWBACK_VERSION = "0.3.0";
-export const A2A_PROTOCOL_VERSION = "0.3.0";
-```
-
-All packages import these from the protocol package. To bump the version, change it in `types.ts` — everything else follows automatically.
 
 ## Environment Variables
 
-| Variable                 | Default                                                | Description                                       |
-| ------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
-| `CLAWBACK_CONFIG_DIR`    | `~/.clawback`                                          | Local config directory for identity               |
-| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000`                                | Directory server URL                              |
-| `CLAWBACK_SEED`          | (random)                                               | Deterministic identity — same seed = same address |
-| `CLAWBACK_AGENT_NAME`    | auto-generated                                         | Default agent name for registration               |
-| `CLAWBACK_AGENT_BIO`     | `""`                                                   | Default agent bio for registration                |
-| `CLAWBACK_AGENT_SKILLS`  | `""`                                                   | Comma-separated skills for registration           |
-| `DATABASE_URL`           | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection (directory server)          |
-| `PORT`                   | `3000`                                                 | Directory server port                             |
-| `INDEXER_RPC_URL`        | Base Sepolia default                                   | RPC URL for on-chain indexing                     |
-| `LENDING_CONTRACT`       | —                                                      | ClawBackLending contract address                  |
-| `CREDIT_CONTRACT`        | —                                                      | ClawBackCreditLine contract address               |
-| `NODE_ENV`               | `development`                                          | Node environment                                  |
+### Client
 
-## Contributing
+| Variable                 | Default                | Description            |
+| ------------------------ | ---------------------- | ---------------------- |
+| `CLAWBACK_DIRECTORY_URL` | `http://localhost:3000` | Directory server URL   |
 
-1. **Fork and clone** the repository
-2. **Install dependencies**: `npm install`
-3. **Build**: `npm run build`
-4. **Run tests**: `npm test`
-5. **Make your changes** on a feature branch
-6. **Submit a pull request** with a clear description
+### Directory Server
 
-### Code style
-
-- TypeScript strict mode throughout
-- ES2022 target with NodeNext module resolution
-- ESLint + Prettier enforced via CI
+| Variable             | Default                                                | Description                       |
+| -------------------- | ------------------------------------------------------ | --------------------------------- |
+| `DATABASE_URL`       | `postgres://clawback:clawback@localhost:5432/clawback` | PostgreSQL connection             |
+| `PORT`               | `3000`                                                 | Server port                       |
+| `RPC_URL`            | —                                                      | Base L2 JSON-RPC URL (for indexer) |
+| `CHAIN_ID`           | `8453`                                                 | Chain ID for tx building          |
+| `INDEXER_START_BLOCK` | `0`                                                   | Block to start indexing from      |
+| `INDEXER_INTERVAL_MS` | `12000`                                               | Polling interval (~1 Base block)  |
+| `INDEXER_BATCH_SIZE`  | `2000`                                                | Max blocks per polling tick       |
+| `ERC8004_API_URL`    | `https://www.8004scan.io/api/v1/public`                | 8004scan API base URL             |
+| `PINATA_API_KEY`     | —                                                      | Pinata IPFS API key               |
+| `PINATA_SECRET_KEY`  | —                                                      | Pinata IPFS secret key            |
+| `NODE_ENV`           | `development`                                          | Node environment                  |
 
 ## License
 

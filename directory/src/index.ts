@@ -7,7 +7,7 @@ async function main() {
   await initDb();
 
   // Start on-chain event indexer if contract is configured
-  startIndexer();
+  await startIndexer();
 
   const server = app.listen(config.port, () => {
     console.log(

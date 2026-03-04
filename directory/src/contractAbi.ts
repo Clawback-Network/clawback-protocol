@@ -1,104 +1,4 @@
 /**
- * Human-readable viem ABI for ClawBackLending contract events and view functions.
- * Only includes what the indexer needs — events for polling + getLoan for enrichment.
- */
-export const clawBackLendingAbi = [
-  // ─── Events ───────────────────────────────────────────────────
-
-  {
-    type: "event",
-    name: "LoanCreated",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "borrower", type: "address", indexed: true },
-      { name: "amount", type: "uint256", indexed: false },
-      { name: "collateral", type: "uint256", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "LoanAssessed",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "assessor", type: "address", indexed: true },
-      { name: "stake", type: "uint256", indexed: false },
-      { name: "apr", type: "uint256", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "AssessmentWithdrawn",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "assessor", type: "address", indexed: true },
-      { name: "stake", type: "uint256", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "LoanActivated",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "totalFunded", type: "uint256", indexed: false },
-      { name: "activatedBy", type: "address", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "RepaymentMade",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "borrower", type: "address", indexed: true },
-      { name: "amount", type: "uint256", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "LoanRepaid",
-    inputs: [{ name: "loanId", type: "bytes32", indexed: true }],
-  },
-  {
-    type: "event",
-    name: "LoanDefaulted",
-    inputs: [
-      { name: "loanId", type: "bytes32", indexed: true },
-      { name: "collateralDistributed", type: "uint256", indexed: false },
-    ],
-  },
-  {
-    type: "event",
-    name: "LoanCancelled",
-    inputs: [{ name: "loanId", type: "bytes32", indexed: true }],
-  },
-
-  // ─── View Functions ───────────────────────────────────────────
-
-  {
-    type: "function",
-    name: "getLoan",
-    stateMutability: "view",
-    inputs: [{ name: "loanId", type: "bytes32" }],
-    outputs: [
-      {
-        type: "tuple",
-        components: [
-          { name: "borrower", type: "address" },
-          { name: "amountRequested", type: "uint256" },
-          { name: "minFundingAmount", type: "uint256" },
-          { name: "totalFunded", type: "uint256" },
-          { name: "totalRepaid", type: "uint256" },
-          { name: "collateralAmount", type: "uint256" },
-          { name: "fundingDeadline", type: "uint256" },
-          { name: "activatedAt", type: "uint256" },
-          { name: "durationDays", type: "uint256" },
-          { name: "status", type: "uint8" },
-        ],
-      },
-    ],
-  },
-] as const;
-
-/**
  * Human-readable viem ABI for ClawBackCreditLine contract events and view functions.
  */
 export const clawBackCreditLineAbi = [
@@ -170,15 +70,6 @@ export const clawBackCreditLineAbi = [
       { name: "triggeredBy", type: "address", indexed: false },
     ],
   },
-  {
-    type: "event",
-    name: "AgentIdRegistered",
-    inputs: [
-      { name: "agent", type: "address", indexed: true },
-      { name: "agentId", type: "uint256", indexed: false },
-    ],
-  },
-
   // ─── View Functions ───────────────────────────────────────────
 
   {
@@ -217,5 +108,111 @@ export const clawBackCreditLineAbi = [
         ],
       },
     ],
+  },
+  // ─── Write Functions ─────────────────────────────────────────
+
+  {
+    type: "function",
+    name: "backAgent",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "borrower", type: "address" },
+      { name: "amount", type: "uint256" },
+      { name: "apr", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "adjustBacking",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "borrower", type: "address" },
+      { name: "newAmount", type: "uint256" },
+      { name: "newApr", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "withdrawBacking",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "draw",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "repay",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+] as const;
+
+/**
+ * ERC-8004 Reputation Registry ABI — giveFeedback only.
+ */
+export const reputationRegistryAbi = [
+  {
+    type: "function",
+    name: "giveFeedback",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "agentId", type: "uint256" },
+      { name: "value", type: "int128" },
+      { name: "valueDecimals", type: "uint8" },
+      { name: "tag1", type: "string" },
+      { name: "tag2", type: "string" },
+      { name: "endpoint", type: "string" },
+      { name: "feedbackURI", type: "string" },
+      { name: "feedbackHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+/**
+ * ERC-8004 Identity Registry ABI — agent registration.
+ */
+export const identityRegistryAbi = [
+  {
+    type: "function",
+    name: "register",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "agentURI", type: "string" }],
+    outputs: [{ name: "agentId", type: "uint256" }],
+  },
+] as const;
+
+/**
+ * Minimal ERC-20 ABI for approve and allowance.
+ */
+export const erc20Abi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;

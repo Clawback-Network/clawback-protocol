@@ -1,6 +1,6 @@
 {
   "name": "@clawback-network/protocol",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared message types, envelope codec, and validation for ClawBack Protocol",
   "type": "module",
   "main": "dist/index.js",

@@ -2,17 +2,13 @@ import type { Transaction } from "sequelize";
 import { createPublicClient, defineChain, http, type Log } from "viem";
 import { config } from "./config.js";
 import { sequelize } from "./db.js";
-import { clawBackLendingAbi, clawBackCreditLineAbi } from "./contractAbi.js";
-import { Loan } from "./models/Loan.js";
-import { LoanAssessment } from "./models/LoanAssessment.js";
+import { clawBackCreditLineAbi } from "./contractAbi.js";
 import { IndexerState } from "./models/IndexerState.js";
-import {
-  AgentLendingMetrics,
-  type AgentLendingMetricsAttributes,
-} from "./models/AgentLendingMetrics.js";
-import { Notification } from "./models/Notification.js";
 import { CreditLineModel } from "./models/CreditLine.js";
 import { CreditBacking } from "./models/CreditBacking.js";
+import { CreditEvent } from "./models/CreditEvent.js";
+import { Agent } from "./models/Agent.js";
+import { fetchErc8004Profile } from "./services/erc8004.js";
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -26,36 +22,6 @@ function toUsdc(raw: bigint): number {
 /** Convert basis points to human-readable percentage (1000 → 10.0). */
 function bpsToPercent(bps: bigint): number {
   return Number(bps) / 100;
-}
-
-/** Contract status enum index → DB string. */
-const _STATUS_MAP: Record<number, string> = {
-  0: "funding",
-  1: "active",
-  2: "completed",
-  3: "defaulted",
-  4: "cancelled",
-};
-
-/**
- * Find-or-create an AgentLendingMetrics row and increment a numeric field.
- * Uses a Sequelize transaction for safety.
- */
-async function incrementMetric(
-  address: string,
-  field: keyof AgentLendingMetricsAttributes,
-  delta: number,
-  tx: Transaction,
-): Promise<void> {
-  const addr = address.toLowerCase();
-  const [metrics] = await AgentLendingMetrics.findOrCreate({
-    where: { agent_address: addr },
-    defaults: {
-      agent_address: addr,
-    } as AgentLendingMetricsAttributes,
-    transaction: tx,
-  });
-  await metrics.increment(field, { by: delta, transaction: tx });
 }
 
 // ─── Indexer State ──────────────────────────────────────────────
@@ -76,357 +42,6 @@ async function getBlockTimestamp(blockNumber: number): Promise<Date> {
   const ts = new Date(Number(block.timestamp) * 1000);
   blockTimestampCache.set(blockNumber, ts);
   return ts;
-}
-
-// ─── Event Handlers ─────────────────────────────────────────────
-
-type ContractLog = Log<
-  bigint,
-  number,
-  false,
-  undefined,
-  true,
-  typeof clawBackLendingAbi
->;
-
-async function handleLoanCreated(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, borrower, amount, collateral } = log.args as {
-    loanId: `0x${string}`;
-    borrower: `0x${string}`;
-    amount: bigint;
-    collateral: bigint;
-  };
-  const blockNum = Number(log.blockNumber);
-
-  // Read full loan data from contract (includes minFundingAmount, durationDays, etc.)
-  const loanData = await client.readContract({
-    address: config.contractAddress as `0x${string}`,
-    abi: clawBackLendingAbi,
-    functionName: "getLoan",
-    args: [loanId],
-  });
-
-  const blockTs = await getBlockTimestamp(blockNum);
-
-  await Loan.findOrCreate({
-    where: { loan_id: loanId },
-    defaults: {
-      loan_id: loanId,
-      borrower_addr: borrower.toLowerCase(),
-      amount_requested: toUsdc(amount),
-      min_funding_amount: toUsdc(loanData.minFundingAmount),
-      total_funded: 0,
-      total_repaid: 0,
-      collateral_amount: toUsdc(collateral),
-      funding_deadline: new Date(Number(loanData.fundingDeadline) * 1000),
-      activated_at: null,
-      duration_days: Number(loanData.durationDays),
-      status: "funding",
-      block_number: blockNum,
-    },
-    transaction: tx,
-  });
-
-  await incrementMetric(borrower, "loans_requested", 1, tx);
-  await incrementMetric(borrower, "total_borrowed", toUsdc(amount), tx);
-
-  await Notification.create(
-    {
-      type: "loan_created",
-      loan_id: loanId,
-      agent_addr: borrower.toLowerCase(),
-      data: {
-        amount: toUsdc(amount),
-        collateral: toUsdc(collateral),
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleLoanAssessed(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, assessor, stake, apr } = log.args as {
-    loanId: `0x${string}`;
-    assessor: `0x${string}`;
-    stake: bigint;
-    apr: bigint;
-  };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-  const stakeUsdc = toUsdc(stake);
-
-  await LoanAssessment.findOrCreate({
-    where: { loan_id: loanId, assessor_addr: assessor.toLowerCase() },
-    defaults: {
-      loan_id: loanId,
-      assessor_addr: assessor.toLowerCase(),
-      stake_amount: stakeUsdc,
-      apr: bpsToPercent(apr),
-      block_number: blockNum,
-      withdrawn_at: null,
-    },
-    transaction: tx,
-  });
-
-  // Update loan total_funded
-  await Loan.increment("total_funded", {
-    by: stakeUsdc,
-    where: { loan_id: loanId },
-    transaction: tx,
-  });
-
-  await incrementMetric(assessor, "assessments_made", 1, tx);
-  await incrementMetric(assessor, "total_staked", stakeUsdc, tx);
-
-  await Notification.create(
-    {
-      type: "assessment_received",
-      loan_id: loanId,
-      agent_addr: assessor.toLowerCase(),
-      data: {
-        stake: stakeUsdc,
-        apr: bpsToPercent(apr),
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleAssessmentWithdrawn(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, assessor, stake } = log.args as {
-    loanId: `0x${string}`;
-    assessor: `0x${string}`;
-    stake: bigint;
-  };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-  const stakeUsdc = toUsdc(stake);
-
-  // Mark assessment as withdrawn
-  await LoanAssessment.update(
-    { withdrawn_at: blockTs },
-    {
-      where: { loan_id: loanId, assessor_addr: assessor.toLowerCase() },
-      transaction: tx,
-    },
-  );
-
-  // Decrement loan total_funded
-  await Loan.decrement("total_funded", {
-    by: stakeUsdc,
-    where: { loan_id: loanId },
-    transaction: tx,
-  });
-
-  await incrementMetric(assessor, "assessments_made", -1, tx);
-  await incrementMetric(assessor, "total_staked", -stakeUsdc, tx);
-
-  await Notification.create(
-    {
-      type: "assessment_withdrawn",
-      loan_id: loanId,
-      agent_addr: assessor.toLowerCase(),
-      data: {
-        stake: stakeUsdc,
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleLoanActivated(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, totalFunded } = log.args as {
-    loanId: `0x${string}`;
-    totalFunded: bigint;
-    activatedBy: `0x${string}`;
-  };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-
-  await Loan.update(
-    {
-      status: "active",
-      activated_at: blockTs,
-      total_funded: toUsdc(totalFunded),
-    },
-    { where: { loan_id: loanId }, transaction: tx },
-  );
-
-  const loan = await Loan.findByPk(loanId, { transaction: tx });
-
-  await Notification.create(
-    {
-      type: "loan_activated",
-      loan_id: loanId,
-      agent_addr: loan?.borrower_addr ?? "",
-      data: {
-        total_funded: toUsdc(totalFunded),
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleRepaymentMade(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, borrower, amount } = log.args as {
-    loanId: `0x${string}`;
-    borrower: `0x${string}`;
-    amount: bigint;
-  };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-  const amountUsdc = toUsdc(amount);
-
-  await Loan.increment("total_repaid", {
-    by: amountUsdc,
-    where: { loan_id: loanId },
-    transaction: tx,
-  });
-
-  await incrementMetric(borrower, "total_repaid", amountUsdc, tx);
-
-  await Notification.create(
-    {
-      type: "repayment_received",
-      loan_id: loanId,
-      agent_addr: borrower.toLowerCase(),
-      data: {
-        amount: amountUsdc,
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleLoanRepaid(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId } = log.args as { loanId: `0x${string}` };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-
-  await Loan.update(
-    { status: "completed" },
-    { where: { loan_id: loanId }, transaction: tx },
-  );
-
-  const loan = await Loan.findByPk(loanId, { transaction: tx });
-  if (loan) {
-    await incrementMetric(loan.borrower_addr, "loans_completed", 1, tx);
-  }
-
-  await Notification.create(
-    {
-      type: "loan_completed",
-      loan_id: loanId,
-      agent_addr: loan?.borrower_addr ?? "",
-      data: {
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleLoanDefaulted(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId, collateralDistributed } = log.args as {
-    loanId: `0x${string}`;
-    collateralDistributed: bigint;
-  };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-
-  await Loan.update(
-    { status: "defaulted" },
-    { where: { loan_id: loanId }, transaction: tx },
-  );
-
-  const loan = await Loan.findByPk(loanId, { transaction: tx });
-  if (loan) {
-    await incrementMetric(loan.borrower_addr, "loans_defaulted", 1, tx);
-  }
-
-  // Each assessor loses their stake
-  const assessments = await LoanAssessment.findAll({
-    where: { loan_id: loanId, withdrawn_at: null },
-    transaction: tx,
-  });
-  for (const a of assessments) {
-    await incrementMetric(a.assessor_addr, "total_lost", a.stake_amount, tx);
-  }
-
-  await Notification.create(
-    {
-      type: "loan_defaulted",
-      loan_id: loanId,
-      agent_addr: loan?.borrower_addr ?? "",
-      data: {
-        collateral_distributed: toUsdc(collateralDistributed),
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
-}
-
-async function handleLoanCancelled(
-  log: ContractLog,
-  tx: Transaction,
-): Promise<void> {
-  const { loanId } = log.args as { loanId: `0x${string}` };
-  const blockNum = Number(log.blockNumber);
-  const blockTs = await getBlockTimestamp(blockNum);
-
-  await Loan.update(
-    { status: "cancelled" },
-    { where: { loan_id: loanId }, transaction: tx },
-  );
-
-  const loan = await Loan.findByPk(loanId, { transaction: tx });
-
-  await Notification.create(
-    {
-      type: "loan_cancelled",
-      loan_id: loanId,
-      agent_addr: loan?.borrower_addr ?? "",
-      data: {
-        block_number: blockNum,
-        timestamp: blockTs.toISOString(),
-      },
-    },
-    { transaction: tx },
-  );
 }
 
 // ─── Credit Line Event Handlers ─────────────────────────────────
@@ -483,7 +98,6 @@ async function handleAgentBacked(
       backer_count: 0,
       status: "active",
       last_repayment_at: null,
-      agent_id: null,
       block_number: blockNum,
     },
     transaction: tx,
@@ -494,6 +108,52 @@ async function handleAgentBacked(
     transaction: tx,
   });
   await creditLine.increment("backer_count", { by: 1, transaction: tx });
+
+  await CreditEvent.create(
+    {
+      event_type: "agent_backed",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+      amount: amountUsdc,
+      apr: bpsToPercent(apr),
+      block_number: blockNum,
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(blockNum),
+    },
+    { transaction: tx },
+  );
+
+  // Auto-create stub agent profile if borrower isn't registered yet
+  const addr = borrower.toLowerCase();
+  const [, created] = await Agent.findOrCreate({
+    where: { address: addr },
+    defaults: {
+      address: addr,
+      name: `Agent ${addr.slice(0, 8)}...`,
+      bio: null,
+      country: null,
+      icon_url: null,
+      erc8004_profile: null,
+    },
+    transaction: tx,
+  });
+
+  if (created) {
+    // Fetch ERC-8004 data async (outside the DB transaction)
+    fetchErc8004Profile(addr, config.chainId)
+      .then(async (profile) => {
+        if (profile) {
+          await Agent.update(
+            { erc8004_profile: profile as unknown as Record<string, unknown> },
+            { where: { address: addr } },
+          );
+        }
+      })
+      .catch((err) =>
+        console.warn("[indexer] ERC-8004 lookup failed for stub:", (err as Error).message),
+      );
+    console.log(`[indexer] Created stub agent profile for ${addr}`);
+  }
 }
 
 async function handleBackingAdjusted(
@@ -532,6 +192,20 @@ async function handleBackingAdjusted(
       });
     }
   }
+
+  await CreditEvent.create(
+    {
+      event_type: "backing_adjusted",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+      amount: newAmountUsdc,
+      apr: bpsToPercent(newApr),
+      block_number: Number(log.blockNumber),
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(Number(log.blockNumber)),
+    },
+    { transaction: tx },
+  );
 }
 
 async function handleBackingWithdrawn(
@@ -566,6 +240,20 @@ async function handleBackingWithdrawn(
       where: { borrower_addr: borrower.toLowerCase() },
       transaction: tx,
     });
+
+    await CreditEvent.create(
+      {
+        event_type: "backing_withdrawn",
+        borrower_addr: borrower.toLowerCase(),
+        assessor_addr: backer.toLowerCase(),
+        amount: withdrawnAmount,
+        apr: null,
+        block_number: Number(log.blockNumber),
+        tx_hash: log.transactionHash!,
+        event_timestamp: await getBlockTimestamp(Number(log.blockNumber)),
+      },
+      { transaction: tx },
+    );
   }
 }
 
@@ -573,7 +261,7 @@ async function handleCreditDrawn(
   log: CreditLog,
   tx: Transaction,
 ): Promise<void> {
-  const { borrower, newOutstanding } = log.args as {
+  const { borrower, amount, newOutstanding } = log.args as {
     borrower: `0x${string}`;
     amount: bigint;
     newOutstanding: bigint;
@@ -610,6 +298,20 @@ async function handleCreditDrawn(
       }
     }
   }
+
+  await CreditEvent.create(
+    {
+      event_type: "credit_drawn",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: null,
+      amount: toUsdc(amount),
+      apr: null,
+      block_number: Number(log.blockNumber),
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(Number(log.blockNumber)),
+    },
+    { transaction: tx },
+  );
 }
 
 async function handleCreditRepaymentMade(
@@ -646,13 +348,27 @@ async function handleCreditRepaymentMade(
     where: { borrower_addr: borrower.toLowerCase() },
     transaction: tx,
   });
+
+  await CreditEvent.create(
+    {
+      event_type: "repayment_made",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: null,
+      amount: toUsdc(principalPaid) + toUsdc(interestPaid),
+      apr: null,
+      block_number: blockNum,
+      tx_hash: log.transactionHash!,
+      event_timestamp: blockTs,
+    },
+    { transaction: tx },
+  );
 }
 
 async function handleCreditLineDefaulted(
   log: CreditLog,
   tx: Transaction,
 ): Promise<void> {
-  const { borrower } = log.args as {
+  const { borrower, outstanding } = log.args as {
     borrower: `0x${string}`;
     outstanding: bigint;
     triggeredBy: `0x${string}`;
@@ -673,41 +389,23 @@ async function handleCreditLineDefaulted(
       transaction: tx,
     },
   );
-}
 
-async function handleAgentIdRegistered(
-  log: CreditLog,
-  tx: Transaction,
-): Promise<void> {
-  const { agent, agentId } = log.args as {
-    agent: `0x${string}`;
-    agentId: bigint;
-  };
-
-  await CreditLineModel.update(
-    { agent_id: Number(agentId) },
+  await CreditEvent.create(
     {
-      where: { borrower_addr: agent.toLowerCase() },
-      transaction: tx,
+      event_type: "credit_line_defaulted",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: null,
+      amount: toUsdc(outstanding),
+      apr: null,
+      block_number: Number(log.blockNumber),
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(Number(log.blockNumber)),
     },
+    { transaction: tx },
   );
 }
 
 // ─── Event Dispatch ─────────────────────────────────────────────
-
-const EVENT_HANDLERS: Record<
-  string,
-  (log: ContractLog, tx: Transaction) => Promise<void>
-> = {
-  LoanCreated: handleLoanCreated,
-  LoanAssessed: handleLoanAssessed,
-  AssessmentWithdrawn: handleAssessmentWithdrawn,
-  LoanActivated: handleLoanActivated,
-  RepaymentMade: handleRepaymentMade,
-  LoanRepaid: handleLoanRepaid,
-  LoanDefaulted: handleLoanDefaulted,
-  LoanCancelled: handleLoanCancelled,
-};
 
 const CREDIT_EVENT_HANDLERS: Record<
   string,
@@ -719,7 +417,6 @@ const CREDIT_EVENT_HANDLERS: Record<
   CreditDrawn: handleCreditDrawn,
   RepaymentMade: handleCreditRepaymentMade,
   CreditLineDefaulted: handleCreditLineDefaulted,
-  AgentIdRegistered: handleAgentIdRegistered,
 };
 
 // ─── Core Polling Loop ──────────────────────────────────────────
@@ -729,17 +426,18 @@ async function processBatch(): Promise<void> {
   isProcessing = true;
 
   try {
-    // Get or create cursor
+    const latestBlock = Number(await client.getBlockNumber());
+
+    // Get or create cursor — default to lookback window, never block 0
     const [state] = await IndexerState.findOrCreate({
       where: { id: 1 },
       defaults: {
         id: 1,
-        last_block_number: config.indexerStartBlock,
+        last_block_number: Math.max(0, latestBlock - LOOKBACK_BLOCKS),
       },
     });
 
     const fromBlock = state.last_block_number + 1;
-    const latestBlock = Number(await client.getBlockNumber());
 
     if (fromBlock > latestBlock) {
       return; // nothing new
@@ -750,16 +448,6 @@ async function processBatch(): Promise<void> {
       latestBlock,
     );
 
-    // Fetch lending contract events
-    const lendingLogs = config.contractAddress
-      ? await client.getContractEvents({
-          address: config.contractAddress as `0x${string}`,
-          abi: clawBackLendingAbi,
-          fromBlock: BigInt(fromBlock),
-          toBlock: BigInt(toBlock),
-        })
-      : [];
-
     // Fetch credit line contract events
     const creditLogs = config.creditLineContractAddress
       ? await client.getContractEvents({
@@ -769,13 +457,6 @@ async function processBatch(): Promise<void> {
           toBlock: BigInt(toBlock),
         })
       : [];
-
-    // Sort all logs deterministically by (blockNumber, logIndex)
-    const sortedLending = [...lendingLogs].sort((a, b) => {
-      const blockDiff = Number(a.blockNumber) - Number(b.blockNumber);
-      if (blockDiff !== 0) return blockDiff;
-      return Number(a.logIndex) - Number(b.logIndex);
-    });
 
     const sortedCredit = [...creditLogs].sort((a, b) => {
       const blockDiff = Number(a.blockNumber) - Number(b.blockNumber);
@@ -788,17 +469,6 @@ async function processBatch(): Promise<void> {
 
     // Process all events in a single transaction
     await sequelize.transaction(async (tx) => {
-      // Process lending events
-      for (const log of sortedLending) {
-        const eventName = log.eventName as string;
-        const handler = EVENT_HANDLERS[eventName];
-        if (handler) {
-          await handler(log as ContractLog, tx);
-        } else {
-          console.warn(`[indexer] Unknown lending event: ${eventName}`);
-        }
-      }
-
       // Process credit line events
       for (const log of sortedCredit) {
         const eventName = log.eventName as string;
@@ -817,10 +487,10 @@ async function processBatch(): Promise<void> {
       );
     });
 
-    const totalEvents = sortedLending.length + sortedCredit.length;
+    const totalEvents = sortedCredit.length;
     if (totalEvents > 0) {
       console.log(
-        `[indexer] Processed ${totalEvents} events (blocks ${fromBlock}–${toBlock}): ${sortedLending.length} lending, ${sortedCredit.length} credit`,
+        `[indexer] Processed ${totalEvents} credit events (blocks ${fromBlock}–${toBlock})`,
       );
     }
 
@@ -838,17 +508,18 @@ async function processBatch(): Promise<void> {
 
 // ─── Public API ─────────────────────────────────────────────────
 
+/** ~10 minutes of Base L2 blocks (~2s per block) */
+const LOOKBACK_BLOCKS = 300;
+
 /**
  * Start the on-chain event indexer.
  * Creates a viem PublicClient and begins polling at the configured interval.
+ * On every startup, resets the cursor to ~10 minutes ago to re-process recent events.
  */
-export function startIndexer(): void {
-  if (
-    (!config.contractAddress && !config.creditLineContractAddress) ||
-    !config.rpcUrl
-  ) {
+export async function startIndexer(): Promise<void> {
+  if (!config.creditLineContractAddress || !config.rpcUrl) {
     console.log(
-      "[indexer] Skipped — no contract addresses or RPC_URL not configured",
+      "[indexer] Skipped — no credit line contract address or RPC_URL not configured",
     );
     return;
   }
@@ -870,6 +541,18 @@ export function startIndexer(): void {
 
   stopped = false;
 
+  // Reset cursor to ~10 minutes ago on every startup
+  try {
+    const latestBlock = Number(await client.getBlockNumber());
+    const startFrom = Math.max(0, latestBlock - LOOKBACK_BLOCKS);
+    await IndexerState.upsert({ id: 1, last_block_number: startFrom });
+    console.log(
+      `[indexer] Reset cursor to block ${startFrom} (~10 min lookback from ${latestBlock})`,
+    );
+  } catch (err) {
+    console.warn("[indexer] Could not reset cursor:", (err as Error).message);
+  }
+
   // Run first batch immediately
   processBatch().catch((err) =>
     console.error("[indexer] Initial batch failed:", err),
@@ -883,7 +566,7 @@ export function startIndexer(): void {
   }, config.indexerIntervalMs);
 
   console.log(
-    `[indexer] Started — polling every ${config.indexerIntervalMs}ms (contract: ${config.contractAddress})`,
+    `[indexer] Started — polling every ${config.indexerIntervalMs}ms (credit line contract: ${config.creditLineContractAddress})`,
   );
 }
 

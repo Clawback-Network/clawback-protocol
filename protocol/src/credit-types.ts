@@ -12,7 +12,6 @@ export interface CreditLine {
   status: CreditLineStatus;
   backer_count: number;
   last_repayment_at?: string;
-  agent_id?: number;
 }
 
 export interface CreditBacking {

@@ -23,6 +23,8 @@ services:
       dockerfile: directory/Dockerfile
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgres://clawback:clawback@postgres:5432/clawback
       PORT: "3000"
@@ -41,6 +43,8 @@ services:
       context: ..
       dockerfile: directory/Dockerfile
     command: ["node", "directory/dist/cron.js"]
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgres://clawback:clawback@postgres:5432/clawback
       NODE_ENV: production

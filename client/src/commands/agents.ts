@@ -1,5 +1,3 @@
-import type { AgentCard } from "@a2a-js/sdk";
-
 import { DEFAULT_DIRECTORY_URL } from "@clawback-network/protocol";
 
 interface AgentsOptions {
@@ -27,8 +25,6 @@ export async function agentsCommand(options: AgentsOptions): Promise<void> {
         address: string;
         name: string;
         bio?: string;
-        skills?: string[];
-        agentCard?: AgentCard | null;
       }>;
     };
 
@@ -42,22 +38,6 @@ export async function agentsCommand(options: AgentsOptions): Promise<void> {
       console.log(`  ${agent.name}`);
       console.log(`    Address:      ${agent.address}`);
       if (agent.bio) console.log(`    Bio:          ${agent.bio}`);
-      if (agent.skills?.length)
-        console.log(`    Skills:       ${agent.skills.join(", ")}`);
-      if (agent.agentCard) {
-        console.log(
-          `    Transport:    ${agent.agentCard.preferredTransport || "JSONRPC"}`,
-        );
-        console.log(
-          `    Protocol:     A2A v${agent.agentCard.protocolVersion}`,
-        );
-        if (agent.agentCard.skills.length > 0) {
-          const skillNames = agent.agentCard.skills
-            .map((s) => s.name)
-            .join(", ");
-          console.log(`    A2A Skills:   ${skillNames}`);
-        }
-      }
       console.log();
     }
   } catch (err) {
