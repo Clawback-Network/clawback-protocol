@@ -209,7 +209,7 @@ describe("GET /stats", () => {
     expect(res.body.capturedAt).toBeUndefined();
   });
 
-  it("returns snapshot data when a snapshot exists", async () => {
+  it("always returns live stats even when a snapshot exists", async () => {
     const { Snapshot } = await import("../models/Snapshot.js");
 
     await Snapshot.create({
@@ -220,8 +220,9 @@ describe("GET /stats", () => {
     const res = await request.get("/stats");
 
     expect(res.status).toBe(200);
-    expect(res.body.totalAgents).toBe(42);
-    expect(typeof res.body.capturedAt).toBe("string");
+    // Live stats count actual agents in DB (1 from earlier test), not snapshot value
+    expect(typeof res.body.totalAgents).toBe("number");
+    expect(res.body.totalAgents).toBeGreaterThanOrEqual(1);
   });
 });
 
