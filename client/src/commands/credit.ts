@@ -349,15 +349,22 @@ export async function creditLineCommand(address: string): Promise<void> {
     console.log(`  Interest Paid:   ${cl.total_interest_paid} USDC`);
     console.log(`  Status:          ${cl.status}`);
     console.log(`  Backers:         ${cl.backer_count}`);
-    const totalClaimable = cl.backings?.reduce((sum, b) => sum + (b.claimable_interest ?? 0), 0) ?? 0;
+    const totalClaimable =
+      cl.backings?.reduce((sum, b) => sum + (b.claimable_interest ?? 0), 0) ??
+      0;
     if (totalClaimable > 0) {
       console.log(`  Claimable Int:   ${totalClaimable.toFixed(2)} USDC`);
     }
     if (cl.backings?.length) {
       console.log(`\n  Backers:`);
       for (const b of cl.backings) {
-        const claimInfo = (b.claimable_interest > 0 ? `, claimable: ${b.claimable_interest.toFixed(2)}` : "") +
-          (b.claimable_capital > 0 ? `, capital: ${b.claimable_capital.toFixed(2)}` : "");
+        const claimInfo =
+          (b.claimable_interest > 0
+            ? `, claimable: ${b.claimable_interest.toFixed(2)}`
+            : "") +
+          (b.claimable_capital > 0
+            ? `, capital: ${b.claimable_capital.toFixed(2)}`
+            : "");
         console.log(
           `    ${b.assessor_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% APR (drawn: ${b.drawn_amount}, earned: ${b.earned_interest}${claimInfo})`,
         );
@@ -408,8 +415,13 @@ export async function backingsCommand(address: string): Promise<void> {
     }
 
     for (const b of data.backings) {
-      const claimInfo = (b.claimable_interest > 0 ? `, claimable: ${b.claimable_interest.toFixed(2)}` : "") +
-        (b.claimable_capital > 0 ? `, capital: ${b.claimable_capital.toFixed(2)}` : "");
+      const claimInfo =
+        (b.claimable_interest > 0
+          ? `, claimable: ${b.claimable_interest.toFixed(2)}`
+          : "") +
+        (b.claimable_capital > 0
+          ? `, capital: ${b.claimable_capital.toFixed(2)}`
+          : "");
       console.log(
         `  ${b.borrower_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% (drawn: ${b.drawn_amount}, earned: ${b.earned_interest}${claimInfo})`,
       );
