@@ -39,9 +39,7 @@ export async function initDb(instance?: Sequelize): Promise<void> {
   const { initCreditLineModel } = await import("./models/CreditLine.js");
   const { initCreditBackingModel } = await import("./models/CreditBacking.js");
   const { initCreditEventModel } = await import("./models/CreditEvent.js");
-  const { initFeedbackEventModel } = await import(
-    "./models/FeedbackEvent.js"
-  );
+  const { initFeedbackEventModel } = await import("./models/FeedbackEvent.js");
   initAgentModel(sequelize);
   initSnapshotModel(sequelize);
   initIndexerStateModel(sequelize);

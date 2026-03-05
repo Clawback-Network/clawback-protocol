@@ -209,9 +209,8 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
 
     if (erc8004Profile) {
       // Query DB feedbacks by agent_addr or by token_id from profile
-      const tokenId = (
-        erc8004Profile.agent as Record<string, unknown> | null
-      )?.token_id as string | undefined;
+      const tokenId = (erc8004Profile.agent as Record<string, unknown> | null)
+        ?.token_id as string | undefined;
 
       const dbFeedbacks = await FeedbackEvent.findAll({
         where: {
@@ -240,8 +239,11 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
       }));
 
       // Merge: use DB feedbacks, dedup by tx_hash with any cached ones
-      const cachedFeedbacks = (erc8004Profile.feedbacks ?? []) as Erc8004Feedback[];
-      const seenTxHashes = new Set(dbMapped.map((f) => f.transaction_hash.toLowerCase()));
+      const cachedFeedbacks = (erc8004Profile.feedbacks ??
+        []) as Erc8004Feedback[];
+      const seenTxHashes = new Set(
+        dbMapped.map((f) => f.transaction_hash.toLowerCase()),
+      );
       const merged = [
         ...dbMapped,
         ...cachedFeedbacks.filter(
@@ -255,13 +257,14 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
       const assessorAgents = assessorAddrs.length
         ? await Agent.findAll({ where: { address: assessorAddrs } })
         : [];
-      const assessorMap = new Map(
-        assessorAgents.map((a) => [a.address, a]),
-      );
+      const assessorMap = new Map(assessorAgents.map((a) => [a.address, a]));
 
       erc8004Profile.feedbacks = merged.map((f) => {
         const assessorAgent = assessorMap.get(f.user_address.toLowerCase());
-        const profile = assessorAgent?.erc8004_profile as Record<string, unknown> | null;
+        const profile = assessorAgent?.erc8004_profile as Record<
+          string,
+          unknown
+        > | null;
         const agentData = profile?.agent as Record<string, unknown> | null;
         return {
           ...f,

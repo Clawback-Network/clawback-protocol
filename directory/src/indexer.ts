@@ -3,10 +3,7 @@ import { createPublicClient, defineChain, http, type Log } from "viem";
 import { getChainConfig } from "@clawback-network/protocol";
 import { config } from "./config.js";
 import { sequelize } from "./db.js";
-import {
-  clawBackCreditLineAbi,
-  reputationRegistryAbi,
-} from "./contractAbi.js";
+import { clawBackCreditLineAbi, reputationRegistryAbi } from "./contractAbi.js";
 import { IndexerState } from "./models/IndexerState.js";
 import { CreditLineModel } from "./models/CreditLine.js";
 import { CreditBacking } from "./models/CreditBacking.js";
@@ -428,18 +425,27 @@ async function handleNewFeedback(
   log: FeedbackLog,
   tx: Transaction,
 ): Promise<void> {
-  const { agentId, clientAddress, feedbackIndex, value, valueDecimals, tag1, tag2, feedbackURI, feedbackHash } =
-    log.args as {
-      agentId: bigint;
-      clientAddress: `0x${string}`;
-      feedbackIndex: bigint;
-      value: bigint;
-      valueDecimals: number;
-      tag1: string;
-      tag2: string;
-      feedbackURI: string;
-      feedbackHash: `0x${string}`;
-    };
+  const {
+    agentId,
+    clientAddress,
+    feedbackIndex,
+    value,
+    valueDecimals,
+    tag1,
+    tag2,
+    feedbackURI,
+    feedbackHash,
+  } = log.args as {
+    agentId: bigint;
+    clientAddress: `0x${string}`;
+    feedbackIndex: bigint;
+    value: bigint;
+    valueDecimals: number;
+    tag1: string;
+    tag2: string;
+    feedbackURI: string;
+    feedbackHash: `0x${string}`;
+  };
 
   const tokenId = agentId.toString();
   const blockNum = Number(log.blockNumber);

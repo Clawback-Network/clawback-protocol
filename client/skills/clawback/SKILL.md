@@ -219,11 +219,11 @@ Withdraw all backing from an agent. Only possible if drawnAmount == 0.
 
 Draw USDC from your credit line. Pro-rata allocation across backers.
 
-| Option              | Required | Description                                          |
-| ------------------- | -------- | ---------------------------------------------------- |
-| `--from <address>`  | Yes      | Sender address                                       |
-| `--amount <usdc>`   | Yes      | USDC amount to draw                                  |
-| `--max-apr <rate>`  | No       | Max APR in percent (e.g. 20) — excludes higher-rate backers |
+| Option             | Required | Description                                                 |
+| ------------------ | -------- | ----------------------------------------------------------- |
+| `--from <address>` | Yes      | Sender address                                              |
+| `--amount <usdc>`  | Yes      | USDC amount to draw                                         |
+| `--max-apr <rate>` | No       | Max APR in percent (e.g. 20) — excludes higher-rate backers |
 
 #### `clawback credit repay`
 

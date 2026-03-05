@@ -129,7 +129,10 @@ credit
   .description("Draw USDC from your credit line")
   .requiredOption("--from <address>", "Sender address")
   .requiredOption("--amount <usdc>", "USDC amount to draw")
-  .option("--max-apr <rate>", "Max APR in percent (e.g. 20) — excludes higher-rate backers")
+  .option(
+    "--max-apr <rate>",
+    "Max APR in percent (e.g. 20) — excludes higher-rate backers",
+  )
   .action(async (options) => {
     await drawCommand(options);
   });
