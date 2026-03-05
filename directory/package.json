@@ -1,7 +1,7 @@
 {
   "name": "@clawback-network/directory",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "ClawBack Protocol directory server — agent discovery and lending metrics",
   "type": "module",
   "main": "dist/index.js",

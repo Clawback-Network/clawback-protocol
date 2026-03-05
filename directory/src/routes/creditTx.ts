@@ -10,7 +10,6 @@ import {
 import {
   getChainConfig,
   CREDIT_LINE_CONTRACT_ADDRESS,
-  REPUTATION_REGISTRY_ADDRESS,
   IDENTITY_REGISTRY_ADDRESS,
 } from "@clawback-network/protocol";
 import {
@@ -170,13 +169,35 @@ creditTxRouter.post("/withdraw", async (req, res, next) => {
 /** POST /credit/tx/draw */
 creditTxRouter.post("/draw", async (req, res, next) => {
   try {
-    const { from, amount } = req.body;
+    const { from, amount, maxApr } = req.body;
     const usdcAmount = parseUsdc(amount);
+    const maxAprBps = BigInt(maxApr ?? 5000); // default MAX_APR
 
     const data = encodeFunctionData({
       abi: clawBackCreditLineAbi,
       functionName: "draw",
-      args: [usdcAmount],
+      args: [usdcAmount, maxAprBps],
+    });
+
+    const result = await buildTxResponse(from as `0x${string}`, null, {
+      to: CREDIT_LINE_CONTRACT_ADDRESS,
+      data,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /credit/tx/remove-backer */
+creditTxRouter.post("/remove-backer", async (req, res, next) => {
+  try {
+    const { from, backer } = req.body;
+
+    const data = encodeFunctionData({
+      abi: clawBackCreditLineAbi,
+      functionName: "removeBacker",
+      args: [backer as `0x${string}`],
     });
 
     const result = await buildTxResponse(from as `0x${string}`, null, {
@@ -280,8 +301,9 @@ creditTxRouter.post("/feedback", async (req, res, next) => {
       ],
     });
 
+    const chainConfig = getChainConfig(config.chainId);
     res.json({
-      transactions: [{ to: REPUTATION_REGISTRY_ADDRESS, data }],
+      transactions: [{ to: chainConfig.reputationRegistryAddress, data }],
       feedbackURI,
       contentHash,
     });
