@@ -44,6 +44,15 @@ export const clawBackCreditLineAbi = [
   },
   {
     type: "event",
+    name: "CapitalClaimed",
+    inputs: [
+      { name: "borrower", type: "address", indexed: true },
+      { name: "backer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "CreditDrawn",
     inputs: [
       { name: "borrower", type: "address", indexed: true },
@@ -104,6 +113,8 @@ export const clawBackCreditLineAbi = [
           { name: "drawnAmount", type: "uint256" },
           { name: "accruedInterest", type: "uint256" },
           { name: "earnedInterest", type: "uint256" },
+          { name: "claimableInterest", type: "uint256" },
+          { name: "claimableCapital", type: "uint256" },
           { name: "active", type: "bool" },
         ],
       },
@@ -162,6 +173,27 @@ export const clawBackCreditLineAbi = [
     name: "removeBacker",
     stateMutability: "nonpayable",
     inputs: [{ name: "backer", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimInterest",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimCapital",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "triggerDefault",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
     outputs: [],
   },
   {

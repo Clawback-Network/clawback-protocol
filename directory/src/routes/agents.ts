@@ -63,6 +63,7 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
         name: body.name,
         bio: body.bio ?? agent.bio,
         icon_url: body.iconUrl ?? agent.icon_url,
+        account_type: body.accountType ?? agent.account_type,
       });
     } else {
       agent = await Agent.create({
@@ -72,6 +73,7 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
         country: null,
         icon_url: body.iconUrl ?? null,
         erc8004_profile: null,
+        account_type: body.accountType ?? "agent",
       });
     }
 
@@ -103,7 +105,7 @@ agentsRouter.post("/register", registrationLimiter, async (req, res, next) => {
  */
 agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
   try {
-    const { q } = req.query;
+    const { q, accountType } = req.query;
     const limit = Math.min(
       Math.max(1, parseInt(req.query.limit as string) || 20),
       100,
@@ -115,7 +117,12 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
       where[Op.or as unknown as string] = [
         { name: { [Op.iLike]: `%${q}%` } },
         { bio: { [Op.iLike]: `%${q}%` } },
+        { address: { [Op.iLike]: `%${q}%` } },
       ];
+    }
+
+    if (accountType && typeof accountType === "string") {
+      where.account_type = accountType;
     }
 
     const { rows: agents, count: total } = await Agent.findAndCountAll({
@@ -140,6 +147,7 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
           name: a.name,
           bio: a.bio,
           iconUrl: a.icon_url ?? null,
+          accountType: a.account_type,
           registeredAt: a.createdAt?.toISOString(),
           country: a.country ?? null,
           creditLine: cl
@@ -284,6 +292,7 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
       address: agent.address,
       name: agent.name,
       bio: agent.bio,
+      accountType: agent.account_type,
       registeredAt: agent.createdAt?.toISOString(),
       country: agent.country ?? null,
       erc8004Profile,

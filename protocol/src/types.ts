@@ -6,7 +6,7 @@ export const DEFAULT_DIRECTORY_URL = "http://localhost:3000";
 
 /** ClawBackCreditLine contract address on Base Sepolia */
 export const CREDIT_LINE_CONTRACT_ADDRESS: `0x${string}` =
-  "0x195114cbDd5F3BE46Fa1E23Bb1FAd3985D163D28";
+  "0x6E9Bf12c82dC2B84E3E452Bdec42899Af13Aa825";
 
 /** ERC-8004 Reputation Registry — same deterministic address on all chains */
 export const REPUTATION_REGISTRY_ADDRESS: `0x${string}` =

@@ -232,6 +232,69 @@ creditTxRouter.post("/repay", async (req, res, next) => {
   }
 });
 
+/** POST /credit/tx/claim-interest */
+creditTxRouter.post("/claim-interest", async (req, res, next) => {
+  try {
+    const { from, borrower } = req.body;
+
+    const data = encodeFunctionData({
+      abi: clawBackCreditLineAbi,
+      functionName: "claimInterest",
+      args: [borrower as `0x${string}`],
+    });
+
+    const result = await buildTxResponse(from as `0x${string}`, null, {
+      to: CREDIT_LINE_CONTRACT_ADDRESS,
+      data,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /credit/tx/claim-capital */
+creditTxRouter.post("/claim-capital", async (req, res, next) => {
+  try {
+    const { from, borrower } = req.body;
+
+    const data = encodeFunctionData({
+      abi: clawBackCreditLineAbi,
+      functionName: "claimCapital",
+      args: [borrower as `0x${string}`],
+    });
+
+    const result = await buildTxResponse(from as `0x${string}`, null, {
+      to: CREDIT_LINE_CONTRACT_ADDRESS,
+      data,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /credit/tx/trigger-default */
+creditTxRouter.post("/trigger-default", async (req, res, next) => {
+  try {
+    const { from, borrower } = req.body;
+
+    const data = encodeFunctionData({
+      abi: clawBackCreditLineAbi,
+      functionName: "triggerDefault",
+      args: [borrower as `0x${string}`],
+    });
+
+    const result = await buildTxResponse(from as `0x${string}`, null, {
+      to: CREDIT_LINE_CONTRACT_ADDRESS,
+      data,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** POST /credit/tx/feedback — build giveFeedback tx + pin analysis to IPFS */
 creditTxRouter.post("/feedback", async (req, res, next) => {
   try {

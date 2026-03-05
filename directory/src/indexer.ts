@@ -83,6 +83,8 @@ async function handleAgentBacked(
       drawn_amount: 0,
       accrued_interest: 0,
       earned_interest: 0,
+      claimable_interest: 0,
+      claimable_capital: 0,
       active: true,
       block_number: blockNum,
     },
@@ -136,6 +138,7 @@ async function handleAgentBacked(
       country: null,
       icon_url: null,
       erc8004_profile: null,
+      account_type: "agent",
     },
     transaction: tx,
   });
@@ -295,7 +298,11 @@ async function handleCreditDrawn(
           args: [borrower, b.assessor_addr as `0x${string}`],
         });
         await b.update(
-          { drawn_amount: toUsdc(backing.drawnAmount) },
+          {
+            drawn_amount: toUsdc(backing.drawnAmount),
+            claimable_interest: toUsdc(backing.claimableInterest),
+            claimable_capital: toUsdc(backing.claimableCapital),
+          },
           { transaction: tx },
         );
       } catch {
@@ -354,6 +361,34 @@ async function handleCreditRepaymentMade(
     transaction: tx,
   });
 
+  // Sync backer claimable_interest from on-chain state
+  if (config.creditLineContractAddress) {
+    const backers = await CreditBacking.findAll({
+      where: { borrower_addr: borrower.toLowerCase(), active: true },
+      transaction: tx,
+    });
+    for (const b of backers) {
+      try {
+        const backing = await client.readContract({
+          address: config.creditLineContractAddress as `0x${string}`,
+          abi: clawBackCreditLineAbi,
+          functionName: "getBacking",
+          args: [borrower, b.assessor_addr as `0x${string}`],
+        });
+        await b.update(
+          {
+            drawn_amount: toUsdc(backing.drawnAmount),
+            claimable_interest: toUsdc(backing.claimableInterest),
+            claimable_capital: toUsdc(backing.claimableCapital),
+          },
+          { transaction: tx },
+        );
+      } catch {
+        // Skip individual backer update on read failure
+      }
+    }
+  }
+
   await CreditEvent.create(
     {
       event_type: "repayment_made",
@@ -395,6 +430,33 @@ async function handleCreditLineDefaulted(
     },
   );
 
+  // Sync claimable_capital from on-chain state for each backer
+  if (config.creditLineContractAddress) {
+    const backers = await CreditBacking.findAll({
+      where: { borrower_addr: borrower.toLowerCase() },
+      transaction: tx,
+    });
+    for (const b of backers) {
+      try {
+        const backing = await client.readContract({
+          address: config.creditLineContractAddress as `0x${string}`,
+          abi: clawBackCreditLineAbi,
+          functionName: "getBacking",
+          args: [borrower, b.assessor_addr as `0x${string}`],
+        });
+        await b.update(
+          {
+            claimable_capital: toUsdc(backing.claimableCapital),
+            claimable_interest: toUsdc(backing.claimableInterest),
+          },
+          { transaction: tx },
+        );
+      } catch {
+        // Skip individual backer update on read failure
+      }
+    }
+  }
+
   await CreditEvent.create(
     {
       event_type: "credit_line_defaulted",
@@ -405,6 +467,76 @@ async function handleCreditLineDefaulted(
       block_number: Number(log.blockNumber),
       tx_hash: log.transactionHash!,
       event_timestamp: await getBlockTimestamp(Number(log.blockNumber)),
+    },
+    { transaction: tx },
+  );
+}
+
+async function handleInterestClaimed(
+  log: CreditLog,
+  tx: Transaction,
+): Promise<void> {
+  const { borrower, backer, amount } = log.args as {
+    borrower: `0x${string}`;
+    backer: `0x${string}`;
+    amount: bigint;
+  };
+  const blockNum = Number(log.blockNumber);
+
+  await CreditBacking.decrement("claimable_interest", {
+    by: toUsdc(amount),
+    where: {
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+    },
+    transaction: tx,
+  });
+
+  await CreditEvent.create(
+    {
+      event_type: "interest_claimed",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+      amount: toUsdc(amount),
+      apr: null,
+      block_number: blockNum,
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(blockNum),
+    },
+    { transaction: tx },
+  );
+}
+
+async function handleCapitalClaimed(
+  log: CreditLog,
+  tx: Transaction,
+): Promise<void> {
+  const { borrower, backer, amount } = log.args as {
+    borrower: `0x${string}`;
+    backer: `0x${string}`;
+    amount: bigint;
+  };
+  const blockNum = Number(log.blockNumber);
+
+  await CreditBacking.decrement("claimable_capital", {
+    by: toUsdc(amount),
+    where: {
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+    },
+    transaction: tx,
+  });
+
+  await CreditEvent.create(
+    {
+      event_type: "capital_claimed",
+      borrower_addr: borrower.toLowerCase(),
+      assessor_addr: backer.toLowerCase(),
+      amount: toUsdc(amount),
+      apr: null,
+      block_number: blockNum,
+      tx_hash: log.transactionHash!,
+      event_timestamp: await getBlockTimestamp(blockNum),
     },
     { transaction: tx },
   );
@@ -500,6 +632,8 @@ const CREDIT_EVENT_HANDLERS: Record<
   CreditDrawn: handleCreditDrawn,
   RepaymentMade: handleCreditRepaymentMade,
   CreditLineDefaulted: handleCreditLineDefaulted,
+  InterestClaimed: handleInterestClaimed,
+  CapitalClaimed: handleCapitalClaimed,
 };
 
 // ─── Core Polling Loop ──────────────────────────────────────────
@@ -575,23 +709,33 @@ async function processBatch(): Promise<void> {
 
     // Process all events in a single transaction
     const feedbackProcessed = await sequelize.transaction(async (tx) => {
-      // Process credit line events
+      // Process credit line events (skip already-indexed tx hashes)
       for (const log of sortedCredit) {
         const eventName = log.eventName as string;
         const handler = CREDIT_EVENT_HANDLERS[eventName];
-        if (handler) {
-          await handler(log as CreditLog, tx);
-        } else {
+        if (!handler) {
           console.warn(`[indexer] Unknown credit event: ${eventName}`);
+          continue;
         }
+        const already = await CreditEvent.findOne({
+          where: { tx_hash: log.transactionHash! },
+          transaction: tx,
+        });
+        if (already) continue;
+        await handler(log as CreditLog, tx);
       }
 
-      // Process reputation registry feedback events (only credit feedbacks)
+      // Process reputation registry feedback events (only credit feedbacks, skip dupes)
       let feedbackCount = 0;
       for (const log of sortedFeedback) {
         if (log.eventName === "NewFeedback") {
           const args = log.args as { tag1?: string };
           if (args.tag1 === "credit") {
+            const already = await FeedbackEvent.findOne({
+              where: { tx_hash: log.transactionHash! },
+              transaction: tx,
+            });
+            if (already) continue;
             await handleNewFeedback(log, tx);
             feedbackCount++;
           }

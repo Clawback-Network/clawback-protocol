@@ -59,24 +59,7 @@ statsRouter.get("/", readLimiter, async (_req, res, next) => {
       return;
     }
 
-    let data: unknown;
-
-    const snapshot = await Snapshot.findOne({
-      order: [["captured_at", "DESC"]],
-    });
-
-    if (snapshot) {
-      data = {
-        totalAgents: snapshot.total_agents,
-        totalCreditLines: snapshot.total_credit_lines,
-        totalCreditBacking: snapshot.total_credit_backing,
-        totalCreditDrawn: snapshot.total_credit_drawn,
-        activeCreditAssessors: snapshot.active_credit_assessors,
-        capturedAt: snapshot.captured_at.toISOString(),
-      };
-    } else {
-      data = await computeLiveStats();
-    }
+    const data = await computeLiveStats();
 
     statsCache = { data, expiresAt: now + STATS_CACHE_TTL_MS };
     res.json(data);

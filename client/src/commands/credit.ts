@@ -225,6 +225,81 @@ export async function feedbackCommand(
   }
 }
 
+/** clawback credit claim-interest <borrower> --from <addr> */
+export async function claimInterestCommand(
+  borrower: string,
+  options: { from: string },
+): Promise<void> {
+  try {
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/claim-interest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
+/** clawback credit claim-capital <borrower> --from <addr> */
+export async function claimCapitalCommand(
+  borrower: string,
+  options: { from: string },
+): Promise<void> {
+  try {
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/claim-capital`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
+/** clawback credit trigger-default <borrower> --from <addr> */
+export async function triggerDefaultCommand(
+  borrower: string,
+  options: { from: string },
+): Promise<void> {
+  try {
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/trigger-default`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: options.from,
+        borrower,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
 // ─── Read Commands (directory API) ────────────────────────────────
 
 interface CreditLineResponse {
@@ -242,6 +317,8 @@ interface CreditLineResponse {
     apr: number;
     drawn_amount: number;
     earned_interest: number;
+    claimable_interest: number;
+    claimable_capital: number;
     active: boolean;
   }>;
 }
@@ -272,11 +349,24 @@ export async function creditLineCommand(address: string): Promise<void> {
     console.log(`  Interest Paid:   ${cl.total_interest_paid} USDC`);
     console.log(`  Status:          ${cl.status}`);
     console.log(`  Backers:         ${cl.backer_count}`);
+    const totalClaimable =
+      cl.backings?.reduce((sum, b) => sum + (b.claimable_interest ?? 0), 0) ??
+      0;
+    if (totalClaimable > 0) {
+      console.log(`  Claimable Int:   ${totalClaimable.toFixed(2)} USDC`);
+    }
     if (cl.backings?.length) {
       console.log(`\n  Backers:`);
       for (const b of cl.backings) {
+        const claimInfo =
+          (b.claimable_interest > 0
+            ? `, claimable: ${b.claimable_interest.toFixed(2)}`
+            : "") +
+          (b.claimable_capital > 0
+            ? `, capital: ${b.claimable_capital.toFixed(2)}`
+            : "");
         console.log(
-          `    ${b.assessor_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% APR (drawn: ${b.drawn_amount}, earned: ${b.earned_interest})`,
+          `    ${b.assessor_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% APR (drawn: ${b.drawn_amount}, earned: ${b.earned_interest}${claimInfo})`,
         );
       }
     }
@@ -293,6 +383,8 @@ interface BackingsResponse {
     apr: number;
     drawn_amount: number;
     earned_interest: number;
+    claimable_interest: number;
+    claimable_capital: number;
   }>;
   total_backed: number;
   total_exposure: number;
@@ -323,8 +415,15 @@ export async function backingsCommand(address: string): Promise<void> {
     }
 
     for (const b of data.backings) {
+      const claimInfo =
+        (b.claimable_interest > 0
+          ? `, claimable: ${b.claimable_interest.toFixed(2)}`
+          : "") +
+        (b.claimable_capital > 0
+          ? `, capital: ${b.claimable_capital.toFixed(2)}`
+          : "");
       console.log(
-        `  ${b.borrower_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% (drawn: ${b.drawn_amount}, earned: ${b.earned_interest})`,
+        `  ${b.borrower_addr.slice(0, 10)}... — ${b.max_amount} USDC @ ${b.apr}% (drawn: ${b.drawn_amount}, earned: ${b.earned_interest}${claimInfo})`,
       );
     }
   } catch (err) {
@@ -341,6 +440,7 @@ const EVENT_LABELS: Record<string, string> = {
   repayment_made: "Repayment",
   credit_line_defaulted: "Defaulted",
   interest_claimed: "Interest Claimed",
+  capital_claimed: "Capital Claimed",
 };
 
 interface CreditEventResponse {

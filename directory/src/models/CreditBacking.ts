@@ -8,6 +8,8 @@ export interface CreditBackingAttributes {
   drawn_amount: number;
   accrued_interest: number;
   earned_interest: number;
+  claimable_interest: number;
+  claimable_capital: number;
   active: boolean;
   block_number: number;
 }
@@ -20,6 +22,8 @@ export class CreditBacking extends Model<CreditBackingAttributes> {
   declare drawn_amount: number;
   declare accrued_interest: number;
   declare earned_interest: number;
+  declare claimable_interest: number;
+  declare claimable_capital: number;
   declare active: boolean;
   declare block_number: number;
   declare readonly createdAt: Date;
@@ -60,6 +64,16 @@ export function initCreditBackingModel(sequelize: Sequelize): void {
         defaultValue: 0,
       },
       earned_interest: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      claimable_interest: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      claimable_capital: {
         type: DataTypes.FLOAT,
         allowNull: false,
         defaultValue: 0,
