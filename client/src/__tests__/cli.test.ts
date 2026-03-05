@@ -66,6 +66,49 @@ describe("credit commands", () => {
     consoleSpy.mockRestore();
   });
 
+  it("drawCommand sends maxApr when provided", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ transactions: [{ to: "0x1", data: "0x2" }] }),
+    });
+
+    const { drawCommand } = await import("../commands/credit.js");
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await drawCommand({ from: "0xSender", amount: "200", maxApr: "20" });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/credit/tx/draw");
+
+    const body = JSON.parse(opts.body);
+    expect(body.from).toBe("0xSender");
+    expect(body.amount).toBe(200);
+    expect(body.maxApr).toBe(2000); // 20% -> 2000 bps
+
+    consoleSpy.mockRestore();
+  });
+
+  it("removeBackerCommand sends correct payload", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ transactions: [{ to: "0x1", data: "0x2" }] }),
+    });
+
+    const { removeBackerCommand } = await import("../commands/credit.js");
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await removeBackerCommand("0xBacker", { from: "0xBorrower" });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/credit/tx/remove-backer");
+
+    const body = JSON.parse(opts.body);
+    expect(body.from).toBe("0xBorrower");
+    expect(body.backer).toBe("0xBacker");
+
+    consoleSpy.mockRestore();
+  });
+
   it("creditRepayCommand sends correct payload", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

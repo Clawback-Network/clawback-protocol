@@ -5,6 +5,7 @@ export interface ChainConfig {
   name: string;
   rpcUrl: string;
   usdcAddress: `0x${string}`;
+  reputationRegistryAddress: `0x${string}`;
   explorerUrl: string;
 }
 
@@ -14,6 +15,7 @@ const CHAINS: Record<number, ChainConfig> = {
     name: "Base",
     rpcUrl: "https://mainnet.base.org",
     usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    reputationRegistryAddress: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
     explorerUrl: "https://basescan.org",
   },
   84532: {
@@ -21,6 +23,7 @@ const CHAINS: Record<number, ChainConfig> = {
     name: "Base Sepolia",
     rpcUrl: "https://sepolia.base.org",
     usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    reputationRegistryAddress: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
     explorerUrl: "https://sepolia.basescan.org",
   },
 };

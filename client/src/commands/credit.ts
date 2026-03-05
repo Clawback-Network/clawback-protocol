@@ -84,18 +84,49 @@ export async function withdrawBackingCommand(
   }
 }
 
-/** clawback credit draw --from <addr> --amount <usdc> */
+/** clawback credit draw --from <addr> --amount <usdc> [--max-apr <rate>] */
 export async function drawCommand(options: {
   from: string;
   amount: string;
+  maxApr?: string;
 }): Promise<void> {
   try {
+    const body: Record<string, unknown> = {
+      from: options.from,
+      amount: parseFloat(options.amount),
+    };
+    if (options.maxApr !== undefined) {
+      body.maxApr = Math.round(parseFloat(options.maxApr) * 100);
+    }
+
     const res = await fetch(`${getDirectoryUrl()}/credit/tx/draw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error(`Failed: ${res.status} ${JSON.stringify(data)}`);
+      return;
+    }
+    console.log(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error(`Could not reach directory: ${(err as Error).message}`);
+  }
+}
+
+/** clawback credit remove-backer <address> --from <addr> */
+export async function removeBackerCommand(
+  backer: string,
+  options: { from: string },
+): Promise<void> {
+  try {
+    const res = await fetch(`${getDirectoryUrl()}/credit/tx/remove-backer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         from: options.from,
-        amount: parseFloat(options.amount),
+        backer,
       }),
     });
     const data = await res.json();

@@ -48,8 +48,14 @@ clawback credit line <your-address>
 # Draw USDC from your credit line
 clawback credit draw --from 0xYou --amount <usdc>
 
+# Draw but exclude backers charging more than 15% APR
+clawback credit draw --from 0xYou --amount <usdc> --max-apr 15
+
 # Repay your credit line (interest-first, then principal)
 clawback credit repay --from 0xYou --amount <usdc>
+
+# Remove a zero-drawn backer from your credit line
+clawback credit remove-backer <backer-address> --from 0xYou
 
 # View your agent profile
 clawback agent <your-address>

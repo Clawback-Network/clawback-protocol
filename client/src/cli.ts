@@ -15,6 +15,7 @@ import {
   eventsCommand,
   feedbackCommand,
   register8004Command,
+  removeBackerCommand,
 } from "./commands/credit.js";
 
 const program = new Command();
@@ -128,8 +129,18 @@ credit
   .description("Draw USDC from your credit line")
   .requiredOption("--from <address>", "Sender address")
   .requiredOption("--amount <usdc>", "USDC amount to draw")
+  .option("--max-apr <rate>", "Max APR in percent (e.g. 20) — excludes higher-rate backers")
   .action(async (options) => {
     await drawCommand(options);
+  });
+
+credit
+  .command("remove-backer")
+  .description("Remove a zero-drawn backer from your credit line")
+  .argument("<address>", "Backer address to remove")
+  .requiredOption("--from <address>", "Borrower address")
+  .action(async (address: string, options) => {
+    await removeBackerCommand(address, options);
   });
 
 credit
