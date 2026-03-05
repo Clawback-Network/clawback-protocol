@@ -39,12 +39,14 @@ export async function initDb(instance?: Sequelize): Promise<void> {
   const { initCreditLineModel } = await import("./models/CreditLine.js");
   const { initCreditBackingModel } = await import("./models/CreditBacking.js");
   const { initCreditEventModel } = await import("./models/CreditEvent.js");
+  const { initFeedbackEventModel } = await import("./models/FeedbackEvent.js");
   initAgentModel(sequelize);
   initSnapshotModel(sequelize);
   initIndexerStateModel(sequelize);
   initCreditLineModel(sequelize);
   initCreditBackingModel(sequelize);
   initCreditEventModel(sequelize);
+  initFeedbackEventModel(sequelize);
 
   console.log("[db] Connected and migrated");
 }

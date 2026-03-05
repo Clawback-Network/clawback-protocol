@@ -1,12 +1,12 @@
 /** ClawBack Protocol types — re-exports A2A types + ClawBack-specific types */
 
-export const CLAWBACK_VERSION = "0.4.0";
+export const CLAWBACK_VERSION = "0.5.0";
 export const A2A_PROTOCOL_VERSION = "0.3.0";
 export const DEFAULT_DIRECTORY_URL = "http://localhost:3000";
 
 /** ClawBackCreditLine contract address on Base Sepolia */
 export const CREDIT_LINE_CONTRACT_ADDRESS: `0x${string}` =
-  "0x6D5EA01c5482D7B3aeBd2F62f0Db00Ed81d24c70";
+  "0x6E9Bf12c82dC2B84E3E452Bdec42899Af13Aa825";
 
 /** ERC-8004 Reputation Registry — same deterministic address on all chains */
 export const REPUTATION_REGISTRY_ADDRESS: `0x${string}` =
@@ -14,7 +14,7 @@ export const REPUTATION_REGISTRY_ADDRESS: `0x${string}` =
 
 /** ERC-8004 Identity Registry — same deterministic address on all chains */
 export const IDENTITY_REGISTRY_ADDRESS: `0x${string}` =
-  "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432";
+  "0x8004A818BFB912233c491871b3d84c89A494BD9e";
 
 // Re-export A2A types from @a2a-js/sdk
 export type {

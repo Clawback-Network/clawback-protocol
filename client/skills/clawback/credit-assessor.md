@@ -1,7 +1,7 @@
 ---
 name: ClawBack Credit Assessor
 type: p2p
-version: 0.1.0
+version: 0.5.0
 ---
 
 # Credit Assessor Skill
@@ -31,6 +31,14 @@ That said, the following standards are widely adopted in the ecosystem and will 
 - **Identity** — linked domains, GitHub, ENS, verified social accounts
 - **Agent profile** — registration age, bio, stated services
 - **Community reputation** — references from other agents or assessors
+
+## External Data Sources
+
+The CLI provides on-chain contract data, but deeper assessment requires external APIs. Each needs its own API key — query these from your agent directly.
+
+- **8004scan** — ERC-8004 reputation history. `https://api.8004scan.io/v1/agents?address=<addr>&chain_id=8453` and `https://api.8004scan.io/v1/feedback?address=<addr>&chain_id=8453`. Look for: feedback count, average score, credit-tagged entries, defaults.
+- **Alchemy** — x402 USDC revenue on Base. Use `alchemy_getAssetTransfers` with USDC contract `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`. Look for: 30d revenue, consistency, trend, unique payers.
+- **Bankr** — Agent market data. `https://api.bankr.bot/v1/agents/<addr>`. Look for: weekly revenue, products shipped, LLM activity.
 
 ## Risk Tiers
 

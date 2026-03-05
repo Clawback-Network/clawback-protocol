@@ -44,6 +44,15 @@ export const clawBackCreditLineAbi = [
   },
   {
     type: "event",
+    name: "CapitalClaimed",
+    inputs: [
+      { name: "borrower", type: "address", indexed: true },
+      { name: "backer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "CreditDrawn",
     inputs: [
       { name: "borrower", type: "address", indexed: true },
@@ -104,6 +113,8 @@ export const clawBackCreditLineAbi = [
           { name: "drawnAmount", type: "uint256" },
           { name: "accruedInterest", type: "uint256" },
           { name: "earnedInterest", type: "uint256" },
+          { name: "claimableInterest", type: "uint256" },
+          { name: "claimableCapital", type: "uint256" },
           { name: "active", type: "bool" },
         ],
       },
@@ -144,7 +155,10 @@ export const clawBackCreditLineAbi = [
     type: "function",
     name: "draw",
     stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
+    inputs: [
+      { name: "amount", type: "uint256" },
+      { name: "maxApr", type: "uint256" },
+    ],
     outputs: [],
   },
   {
@@ -154,12 +168,81 @@ export const clawBackCreditLineAbi = [
     inputs: [{ name: "amount", type: "uint256" }],
     outputs: [],
   },
+  {
+    type: "function",
+    name: "removeBacker",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "backer", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimInterest",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimCapital",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "triggerDefault",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getEffectiveApr",
+    stateMutability: "view",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getEffectiveAprAtMax",
+    stateMutability: "view",
+    inputs: [
+      { name: "borrower", type: "address" },
+      { name: "maxApr", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getMinimumRepayment",
+    stateMutability: "view",
+    inputs: [{ name: "borrower", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
 ] as const;
 
 /**
  * ERC-8004 Reputation Registry ABI — giveFeedback only.
  */
 export const reputationRegistryAbi = [
+  {
+    type: "event",
+    name: "NewFeedback",
+    inputs: [
+      { name: "agentId", type: "uint256", indexed: true },
+      { name: "clientAddress", type: "address", indexed: true },
+      { name: "feedbackIndex", type: "uint64", indexed: false },
+      { name: "value", type: "int128", indexed: false },
+      { name: "valueDecimals", type: "uint8", indexed: false },
+      { name: "indexedTag1", type: "string", indexed: true },
+      { name: "tag1", type: "string", indexed: false },
+      { name: "tag2", type: "string", indexed: false },
+      { name: "endpoint", type: "string", indexed: false },
+      { name: "feedbackURI", type: "string", indexed: false },
+      { name: "feedbackHash", type: "bytes32", indexed: false },
+    ],
+  },
   {
     type: "function",
     name: "giveFeedback",

@@ -17,8 +17,8 @@ export const config = {
   rpcUrl: process.env.RPC_URL || "",
   /** ClawBackCreditLine contract address */
   creditLineContractAddress: CREDIT_LINE_CONTRACT_ADDRESS,
-  /** Polling interval in milliseconds (~1 Base L2 block) */
-  indexerIntervalMs: parseInt(process.env.INDEXER_INTERVAL_MS || "12000", 10),
+  /** Polling interval in milliseconds */
+  indexerIntervalMs: parseInt(process.env.INDEXER_INTERVAL_MS || "30000", 10),
   /** Block number to start indexing from (contract deployment block) */
   indexerStartBlock: parseInt(process.env.INDEXER_START_BLOCK || "0", 10),
   /** Max blocks to fetch per polling tick */

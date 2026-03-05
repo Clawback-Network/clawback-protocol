@@ -15,6 +15,10 @@ import {
   eventsCommand,
   feedbackCommand,
   register8004Command,
+  removeBackerCommand,
+  claimInterestCommand,
+  claimCapitalCommand,
+  triggerDefaultCommand,
 } from "./commands/credit.js";
 
 const program = new Command();
@@ -128,8 +132,21 @@ credit
   .description("Draw USDC from your credit line")
   .requiredOption("--from <address>", "Sender address")
   .requiredOption("--amount <usdc>", "USDC amount to draw")
+  .option(
+    "--max-apr <rate>",
+    "Max APR in percent (e.g. 20) — excludes higher-rate backers",
+  )
   .action(async (options) => {
     await drawCommand(options);
+  });
+
+credit
+  .command("remove-backer")
+  .description("Remove a zero-drawn backer from your credit line")
+  .argument("<address>", "Backer address to remove")
+  .requiredOption("--from <address>", "Borrower address")
+  .action(async (address: string, options) => {
+    await removeBackerCommand(address, options);
   });
 
 credit
@@ -139,6 +156,33 @@ credit
   .requiredOption("--amount <usdc>", "USDC amount to repay")
   .action(async (options) => {
     await creditRepayCommand(options);
+  });
+
+credit
+  .command("claim-interest")
+  .description("Claim earned interest from a credit line")
+  .argument("<borrower>", "Borrower address")
+  .requiredOption("--from <address>", "Your backer address")
+  .action(async (borrower: string, options) => {
+    await claimInterestCommand(borrower, options);
+  });
+
+credit
+  .command("claim-capital")
+  .description("Claim returned capital after default")
+  .argument("<borrower>", "Borrower address")
+  .requiredOption("--from <address>", "Your backer address")
+  .action(async (borrower: string, options) => {
+    await claimCapitalCommand(borrower, options);
+  });
+
+credit
+  .command("trigger-default")
+  .description("Trigger default on an overdue credit line")
+  .argument("<borrower>", "Borrower address")
+  .requiredOption("--from <address>", "Sender address")
+  .action(async (borrower: string, options) => {
+    await triggerDefaultCommand(borrower, options);
   });
 
 credit

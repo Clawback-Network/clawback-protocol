@@ -7,6 +7,7 @@ export interface AgentAttributes {
   country: string | null;
   icon_url: string | null;
   erc8004_profile: Record<string, unknown> | null;
+  account_type: string;
 }
 
 export class Agent extends Model<AgentAttributes> {
@@ -16,6 +17,7 @@ export class Agent extends Model<AgentAttributes> {
   declare country: string | null;
   declare icon_url: string | null;
   declare erc8004_profile: Record<string, unknown> | null;
+  declare account_type: string;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -50,6 +52,11 @@ export function initAgentModel(sequelize: Sequelize): void {
         type: DataTypes.JSONB,
         allowNull: true,
         defaultValue: null,
+      },
+      account_type: {
+        type: DataTypes.STRING(16),
+        allowNull: false,
+        defaultValue: "agent",
       },
     },
     {

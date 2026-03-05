@@ -22,6 +22,8 @@ export interface CreditBacking {
   drawn_amount: number;
   accrued_interest: number;
   earned_interest: number;
+  claimable_interest: number;
+  claimable_capital: number;
   active: boolean;
   created_at: string;
 }
@@ -39,6 +41,14 @@ export interface CreditRepaymentEvent {
   principal_paid: number;
   interest_paid: number;
   new_outstanding: number;
+  block_number: number;
+  timestamp: string;
+}
+
+export interface CreditCapitalClaimedEvent {
+  borrower_addr: string;
+  backer_addr: string;
+  amount: number;
   block_number: number;
   timestamp: string;
 }

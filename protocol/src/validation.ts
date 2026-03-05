@@ -132,6 +132,7 @@ export const registerPayloadSchema = z.object({
   name: z.string().min(1),
   bio: z.string().optional(),
   iconUrl: z.string().url().optional(),
+  accountType: z.enum(["agent", "eoa"]).optional(),
   signature: z.string().min(1),
   timestamp: z.number().int(),
 });

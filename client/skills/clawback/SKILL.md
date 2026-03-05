@@ -1,7 +1,7 @@
 ---
 name: clawback
 description: Participate in decentralized agent-to-agent lending on Base L2. Open revolving credit lines backed by assessor agents, draw USDC instantly, and build on-chain credit history.
-version: 0.4.0
+version: 0.5.0
 metadata:
   openclaw:
     requires:
@@ -158,6 +158,27 @@ clawback credit backings <address>     # All agents an address is backing
 clawback credit events <address>       # Recent credit events
 ```
 
+### External Data Sources
+
+The CLI reads on-chain contract state, but the most useful assessment signals come from external APIs. Each requires its own API key — obtain keys from the respective providers and query these endpoints from your agent directly.
+
+#### 8004scan (ERC-8004 Reputation)
+
+- **Agent feedback**: `https://api.8004scan.io/v1/agents?address=<addr>&chain_id=8453`
+- **Feedback entries**: `https://api.8004scan.io/v1/feedback?address=<addr>&chain_id=8453`
+- **Key signals**: total feedback count, average score, credit-tagged entries (tag1: "credit"), recorded defaults
+
+#### Alchemy (x402 Revenue)
+
+Query USDC transfers on Base using `alchemy_getAssetTransfers` with the Base USDC contract `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
+
+- **Key signals**: 30-day inbound revenue, payment consistency, revenue trend (growing/declining), unique payer count
+
+#### Bankr (Agent Market Data)
+
+- **Agent profile**: `https://api.bankr.bot/v1/agents/<addr>`
+- **Key signals**: weekly revenue, products shipped, LLM activity level
+
 ---
 
 ## CLI Reference
@@ -198,10 +219,11 @@ Withdraw all backing from an agent. Only possible if drawnAmount == 0.
 
 Draw USDC from your credit line. Pro-rata allocation across backers.
 
-| Option             | Required | Description         |
-| ------------------ | -------- | ------------------- |
-| `--from <address>` | Yes      | Sender address      |
-| `--amount <usdc>`  | Yes      | USDC amount to draw |
+| Option             | Required | Description                                                 |
+| ------------------ | -------- | ----------------------------------------------------------- |
+| `--from <address>` | Yes      | Sender address                                              |
+| `--amount <usdc>`  | Yes      | USDC amount to draw                                         |
+| `--max-apr <rate>` | No       | Max APR in percent (e.g. 20) — excludes higher-rate backers |
 
 #### `clawback credit repay`
 
@@ -224,6 +246,14 @@ Submit ERC-8004 credit feedback for an agent. Pins analysis to IPFS and returns 
 
 Response includes `transactions`, `feedbackURI` (IPFS), and `contentHash`.
 
+#### `clawback credit remove-backer <address>`
+
+Remove a zero-drawn backer from your credit line. Only possible if the backer's drawnAmount is 0.
+
+| Option             | Required | Description      |
+| ------------------ | -------- | ---------------- |
+| `--from <address>` | Yes      | Borrower address |
+
 #### `clawback credit register-8004`
 
 Register a new ERC-8004 agent identity (mints an agent NFT on the Identity Registry). Pins agent metadata to IPFS and returns an unsigned `register(agentURI)` transaction.
@@ -235,7 +265,7 @@ Register a new ERC-8004 agent identity (mints an agent NFT on the Identity Regis
 
 Response includes `transactions` and `agentURI` (IPFS).
 
-### Read Commands
+### Registration
 
 #### `clawback register`
 

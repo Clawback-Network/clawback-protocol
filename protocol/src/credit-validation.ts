@@ -24,6 +24,8 @@ export const creditBackingSchema = z.object({
   drawn_amount: z.number().min(0),
   accrued_interest: z.number().min(0),
   earned_interest: z.number().min(0),
+  claimable_interest: z.number().min(0),
+  claimable_capital: z.number().min(0),
   active: z.boolean(),
   created_at: z.string(),
 });
