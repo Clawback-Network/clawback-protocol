@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Op } from "sequelize";
+import { Op, fn, col } from "sequelize";
 import { verifyMessage } from "viem";
 import { registerPayloadSchema } from "@clawback-network/protocol";
 import { Agent } from "../models/Agent.js";
@@ -132,12 +132,27 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
       offset,
     });
 
-    // Bulk-fetch credit lines for all returned agents
+    // Bulk-fetch credit lines and feedback counts for all returned agents
     const addrs = agents.map((a) => a.address);
     const creditLines = addrs.length
       ? await CreditLineModel.findAll({ where: { borrower_addr: addrs } })
       : [];
     const creditMap = new Map(creditLines.map((cl) => [cl.borrower_addr, cl]));
+
+    // Count feedbacks per agent address
+    const feedbackCounts = addrs.length
+      ? await FeedbackEvent.findAll({
+          attributes: ["agent_addr", [fn("COUNT", col("id")), "count"]],
+          where: { agent_addr: addrs },
+          group: ["agent_addr"],
+          raw: true,
+        })
+      : [];
+    const feedbackCountMap = new Map(
+      (
+        feedbackCounts as unknown as { agent_addr: string; count: string }[]
+      ).map((r) => [r.agent_addr, parseInt(r.count, 10)]),
+    );
 
     res.json({
       agents: agents.map((a) => {
@@ -150,6 +165,7 @@ agentsRouter.get("/search", searchLimiter, async (req, res, next) => {
           accountType: a.account_type,
           registeredAt: a.createdAt?.toISOString(),
           country: a.country ?? null,
+          feedbackCount: feedbackCountMap.get(a.address) ?? 0,
           creditLine: cl
             ? {
                 total_backing: cl.total_backing,
@@ -213,80 +229,87 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
     // Merge feedbacks from our DB with cached erc8004_profile
     const erc8004Profile = agent.erc8004_profile
       ? { ...(agent.erc8004_profile as Record<string, unknown>) }
-      : null;
-
-    if (erc8004Profile) {
-      // Query DB feedbacks by agent_addr or by token_id from profile
-      const tokenId = (erc8004Profile.agent as Record<string, unknown> | null)
-        ?.token_id as string | undefined;
-
-      const dbFeedbacks = await FeedbackEvent.findAll({
-        where: {
-          [Op.or]: [
-            ...(addr ? [{ agent_addr: addr }] : []),
-            ...(tokenId ? [{ agent_token_id: tokenId }] : []),
-          ],
-        },
-        order: [["event_timestamp", "DESC"]],
-        limit: 50,
-      });
-
-      // Map DB rows to Erc8004Feedback shape
-      const dbMapped: Erc8004Feedback[] = dbFeedbacks.map((f) => ({
-        score: f.value / 10 ** f.value_decimals,
-        value: f.value.toString(),
-        comment: null,
-        tag1: f.tag1,
-        tag2: f.tag2,
-        user_address: f.user_address,
-        transaction_hash: f.tx_hash ?? "",
-        is_revoked: false,
-        submitted_at: f.event_timestamp.toISOString(),
-        feedback_uri: f.feedback_uri,
-        feedback_hash: f.feedback_hash,
-      }));
-
-      // Merge: use DB feedbacks, dedup by tx_hash with any cached ones
-      const cachedFeedbacks = (erc8004Profile.feedbacks ??
-        []) as Erc8004Feedback[];
-      const seenTxHashes = new Set(
-        dbMapped.map((f) => f.transaction_hash.toLowerCase()),
-      );
-      const merged = [
-        ...dbMapped,
-        ...cachedFeedbacks.filter(
-          (f) => !seenTxHashes.has(f.transaction_hash.toLowerCase()),
-        ),
-      ];
-      // Enrich feedbacks with assessor ERC-8004 agent info
-      const assessorAddrs = [
-        ...new Set(merged.map((f) => f.user_address.toLowerCase())),
-      ];
-      const assessorAgents = assessorAddrs.length
-        ? await Agent.findAll({ where: { address: assessorAddrs } })
-        : [];
-      const assessorMap = new Map(assessorAgents.map((a) => [a.address, a]));
-
-      erc8004Profile.feedbacks = merged.map((f) => {
-        const assessorAgent = assessorMap.get(f.user_address.toLowerCase());
-        const profile = assessorAgent?.erc8004_profile as Record<
-          string,
-          unknown
-        > | null;
-        const agentData = profile?.agent as Record<string, unknown> | null;
-        return {
-          ...f,
-          assessor: agentData
-            ? {
-                address: assessorAgent!.address,
-                name: agentData.name as string,
-                image_url: (agentData.image_url as string) ?? null,
-                token_id: agentData.token_id as string,
-              }
-            : null,
+      : {
+          agent: null,
+          feedbacks: [] as Erc8004Feedback[],
+          fetched_at: new Date().toISOString(),
         };
-      });
-    }
+
+    // Query DB feedbacks by agent_addr or by token_id from profile
+    const tokenId = (erc8004Profile.agent as Record<string, unknown> | null)
+      ?.token_id as string | undefined;
+
+    const dbFeedbacks = await FeedbackEvent.findAll({
+      where: {
+        [Op.or]: [
+          ...(addr ? [{ agent_addr: addr }] : []),
+          ...(tokenId ? [{ agent_token_id: tokenId }] : []),
+        ],
+      },
+      order: [["event_timestamp", "DESC"]],
+      limit: 50,
+    });
+
+    // Map DB rows to Erc8004Feedback shape
+    const dbMapped: Erc8004Feedback[] = dbFeedbacks.map((f) => ({
+      score: f.value / 10 ** f.value_decimals,
+      value: f.value.toString(),
+      comment: null,
+      tag1: f.tag1,
+      tag2: f.tag2,
+      user_address: f.user_address,
+      transaction_hash: f.tx_hash ?? "",
+      is_revoked: false,
+      submitted_at: f.event_timestamp.toISOString(),
+      feedback_uri: f.feedback_uri,
+      feedback_hash: f.feedback_hash,
+    }));
+
+    // Merge: use DB feedbacks, dedup by tx_hash with any cached ones
+    const cachedFeedbacks = (erc8004Profile.feedbacks ??
+      []) as Erc8004Feedback[];
+    const seenTxHashes = new Set(
+      dbMapped
+        .filter((f) => f.transaction_hash)
+        .map((f) => f.transaction_hash.toLowerCase()),
+    );
+    const merged = [
+      ...dbMapped,
+      ...cachedFeedbacks.filter(
+        (f) =>
+          !f.transaction_hash ||
+          !seenTxHashes.has(f.transaction_hash.toLowerCase()),
+      ),
+    ];
+
+    // Enrich feedbacks with assessor ERC-8004 agent info
+    const assessorAddrs = [
+      ...new Set(merged.map((f) => f.user_address.toLowerCase())),
+    ];
+    const assessorAgents = assessorAddrs.length
+      ? await Agent.findAll({ where: { address: assessorAddrs } })
+      : [];
+    const assessorMap = new Map(assessorAgents.map((a) => [a.address, a]));
+
+    erc8004Profile.feedbacks = merged.map((f) => {
+      const assessorAgent = assessorMap.get(f.user_address.toLowerCase());
+      const profile = assessorAgent?.erc8004_profile as Record<
+        string,
+        unknown
+      > | null;
+      const agentData = profile?.agent as Record<string, unknown> | null;
+      return {
+        ...f,
+        assessor: agentData
+          ? {
+              address: assessorAgent!.address,
+              name: agentData.name as string,
+              image_url: (agentData.image_url as string) ?? null,
+              token_id: agentData.token_id as string,
+            }
+          : null,
+      };
+    });
 
     res.json({
       address: agent.address,

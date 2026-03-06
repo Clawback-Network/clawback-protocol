@@ -377,7 +377,21 @@ creditTxRouter.post("/feedback", async (req, res, next) => {
     const feedbackURI = `ipfs://${cid}`;
 
     if (!tokenId) {
-      // Path C: no ERC-8004 identity — store off-chain only
+      // Path C: no ERC-8004 identity — ensure stub agent exists, store off-chain
+      if (borrowerAddr) {
+        await Agent.findOrCreate({
+          where: { address: borrowerAddr },
+          defaults: {
+            address: borrowerAddr,
+            name: `Agent ${borrowerAddr.slice(0, 8)}...`,
+            bio: null,
+            country: null,
+            icon_url: null,
+            account_type: "agent",
+          },
+        });
+      }
+
       await FeedbackEvent.create({
         agent_token_id: null,
         agent_addr: borrowerAddr ?? null,
