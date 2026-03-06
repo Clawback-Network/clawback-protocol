@@ -1,7 +1,7 @@
 ---
 name: ClawBack Credit Assessor
 type: p2p
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Credit Assessor Skill

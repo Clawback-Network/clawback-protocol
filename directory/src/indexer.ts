@@ -623,7 +623,12 @@ async function handleNewFeedback(
           .then(async (profile) => {
             if (profile) {
               await Agent.update(
-                { erc8004_profile: profile as unknown as Record<string, unknown> },
+                {
+                  erc8004_profile: profile as unknown as Record<
+                    string,
+                    unknown
+                  >,
+                },
                 { where: { address: agentAddr! } },
               );
             }
@@ -634,7 +639,9 @@ async function handleNewFeedback(
               (err as Error).message,
             ),
           );
-        console.log(`[indexer] Created stub agent profile for ${agentAddr} (from feedback)`);
+        console.log(
+          `[indexer] Created stub agent profile for ${agentAddr} (from feedback)`,
+        );
       }
     }
   }
