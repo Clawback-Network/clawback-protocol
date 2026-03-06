@@ -223,6 +223,13 @@ creditRouter.get("/events", readLimiter, async (req, res, next) => {
       where.event_type = event_type;
     }
 
+    if (req.query.since && typeof req.query.since === "string") {
+      const sinceDate = new Date(req.query.since);
+      if (!isNaN(sinceDate.getTime())) {
+        where.event_timestamp = { [Op.gt]: sinceDate };
+      }
+    }
+
     const { rows, count } = await CreditEvent.findAndCountAll({
       where,
       order: [["event_timestamp", "DESC"]],
@@ -244,6 +251,7 @@ creditRouter.get("/events", readLimiter, async (req, res, next) => {
 /**
  * GET /credit/events/:address
  * Credit events for a specific address (as borrower or assessor).
+ * Optional: ?since= (ISO 8601) to only return events after a given timestamp.
  */
 creditRouter.get("/events/:address", readLimiter, async (req, res, next) => {
   try {
@@ -264,6 +272,13 @@ creditRouter.get("/events/:address", readLimiter, async (req, res, next) => {
 
     if (event_type && typeof event_type === "string") {
       where.event_type = event_type;
+    }
+
+    if (req.query.since && typeof req.query.since === "string") {
+      const sinceDate = new Date(req.query.since);
+      if (!isNaN(sinceDate.getTime())) {
+        where.event_timestamp = { [Op.gt]: sinceDate };
+      }
     }
 
     const { rows, count } = await CreditEvent.findAndCountAll({

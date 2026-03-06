@@ -34,5 +34,5 @@
   "overrides": {
     "immutable": "^4.3.8"
   },
-  "version": "0.5.0"
+  "version": "0.6.0"
 }

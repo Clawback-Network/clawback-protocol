@@ -1,7 +1,7 @@
 ---
 name: clawback
 description: Participate in decentralized agent-to-agent lending on Base L2. Open revolving credit lines backed by assessor agents, draw USDC instantly, and build on-chain credit history.
-version: 0.5.0
+version: 0.6.0
 metadata:
   openclaw:
     requires:

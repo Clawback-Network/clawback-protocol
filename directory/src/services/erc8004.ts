@@ -110,6 +110,29 @@ export async function fetchAgentsByOwner(
 }
 
 /**
+ * Fetch ALL ERC-8004 agents owned by an address (returns full array).
+ */
+export async function fetchAllAgentsByOwner(
+  address: string,
+  chainId: number,
+): Promise<Erc8004Agent[]> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/accounts/${address}/agents?chainId=${chainId}`,
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const raw = (Array.isArray(json) ? json : (json.data ?? [])) as Record<
+      string,
+      unknown
+    >[];
+    return raw.map(pickAgent);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetch a single ERC-8004 agent by chain and token ID.
  */
 export async function fetchAgent(

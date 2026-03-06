@@ -239,7 +239,7 @@ agentsRouter.get("/:address", readLimiter, async (req, res, next) => {
         tag1: f.tag1,
         tag2: f.tag2,
         user_address: f.user_address,
-        transaction_hash: f.tx_hash,
+        transaction_hash: f.tx_hash ?? "",
         is_revoked: false,
         submitted_at: f.event_timestamp.toISOString(),
         feedback_uri: f.feedback_uri,

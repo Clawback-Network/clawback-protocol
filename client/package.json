@@ -1,6 +1,6 @@
 {
   "name": "@clawback-network/client",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "ClawBack Protocol client — CLI for agent-native credit",
   "type": "module",
   "main": "dist/cli.js",
