@@ -21,6 +21,8 @@ import {
 import { config } from "../config.js";
 import { Agent } from "../models/Agent.js";
 import { pinJsonToIpfs } from "../services/pinata.js";
+import { fetchAgent, fetchAllAgentsByOwner } from "../services/erc8004.js";
+import { FeedbackEvent } from "../models/FeedbackEvent.js";
 
 export const creditTxRouter = Router();
 
@@ -298,7 +300,13 @@ creditTxRouter.post("/trigger-default", async (req, res, next) => {
 /** POST /credit/tx/feedback — build giveFeedback tx + pin analysis to IPFS */
 creditTxRouter.post("/feedback", async (req, res, next) => {
   try {
-    const { from, borrower, score, analysis } = req.body;
+    const { from, agentId, address, score, analysis } = req.body;
+
+    // Must provide at least one of agentId or address
+    if (!agentId && !address) {
+      res.status(400).json({ error: "Must provide agentId or address" });
+      return;
+    }
 
     // Validate score
     const numScore = Number(score);
@@ -307,30 +315,50 @@ creditTxRouter.post("/feedback", async (req, res, next) => {
       return;
     }
 
-    // Look up target agent's ERC-8004 token_id
-    const addr = (borrower as string).toLowerCase();
-    const agent = await Agent.findByPk(addr);
-    if (!agent) {
-      res.status(404).json({ error: "Agent not found" });
-      return;
-    }
+    let tokenId: string | undefined;
+    let borrowerAddr: string | undefined;
 
-    const profile = agent.erc8004_profile as Record<string, unknown> | null;
-    const agentData = profile?.agent as Record<string, unknown> | null;
-    const tokenId = agentData?.token_id as string | undefined;
+    if (agentId) {
+      // Path A: agentId provided — resolve directly via 8004scan
+      const erc8004Agent = await fetchAgent(config.chainId, String(agentId));
+      if (!erc8004Agent) {
+        res.status(404).json({ error: `ERC-8004 agent ${agentId} not found` });
+        return;
+      }
+      tokenId = erc8004Agent.token_id;
+      borrowerAddr = erc8004Agent.owner_address?.toLowerCase();
+    } else {
+      // Path B/C: address provided
+      const addr = (address as string).toLowerCase();
+      borrowerAddr = addr;
 
-    if (!tokenId) {
-      res.status(400).json({
-        error: "Agent has no ERC-8004 agent ID — cannot submit feedback",
-      });
-      return;
+      // First try DB lookup
+      const agent = await Agent.findByPk(addr);
+      const profile = agent?.erc8004_profile as Record<string, unknown> | null;
+      const agentData = profile?.agent as Record<string, unknown> | null;
+      tokenId = agentData?.token_id as string | undefined;
+
+      // If not in DB, try 8004scan
+      if (!tokenId) {
+        const agents = await fetchAllAgentsByOwner(addr, config.chainId);
+        if (agents.length > 1) {
+          res.status(400).json({
+            error:
+              "Multiple ERC-8004 agents found for this address. Please specify agentId directly.",
+          });
+          return;
+        }
+        if (agents.length === 1) {
+          tokenId = agents[0].token_id;
+        }
+      }
     }
 
     // Build analysis JSON for IPFS
     const analysisPayload: Record<string, unknown> = {
       protocol: "clawback",
       type: "credit-assessment",
-      borrower: addr,
+      borrower: borrowerAddr ?? "",
       assessor: (from as string).toLowerCase(),
       score: numScore,
       analysis: analysis ?? {},
@@ -344,11 +372,47 @@ creditTxRouter.post("/feedback", async (req, res, next) => {
     // Pin to IPFS
     const cid = await pinJsonToIpfs(
       analysisPayload,
-      `clawback-feedback-${addr}-${Date.now()}`,
+      `clawback-feedback-${borrowerAddr ?? "unknown"}-${Date.now()}`,
     );
     const feedbackURI = `ipfs://${cid}`;
 
-    // Encode giveFeedback calldata
+    if (!tokenId) {
+      // Path C: no ERC-8004 identity — ensure stub agent exists, store off-chain
+      if (borrowerAddr) {
+        await Agent.findOrCreate({
+          where: { address: borrowerAddr },
+          defaults: {
+            address: borrowerAddr,
+            name: `Agent ${borrowerAddr.slice(0, 8)}...`,
+            bio: null,
+            country: null,
+            icon_url: null,
+            account_type: "agent",
+          },
+        });
+      }
+
+      await FeedbackEvent.create({
+        agent_token_id: null,
+        agent_addr: borrowerAddr ?? null,
+        user_address: (from as string).toLowerCase(),
+        feedback_index: 0,
+        value: numScore,
+        value_decimals: 0,
+        tag1: "credit",
+        tag2: "assessment",
+        feedback_uri: feedbackURI,
+        feedback_hash: contentHash,
+        block_number: null,
+        tx_hash: null,
+        event_timestamp: new Date(),
+      });
+
+      res.json({ offchain: true, feedbackURI, contentHash });
+      return;
+    }
+
+    // Path A/B: encode giveFeedback calldata
     const data = encodeFunctionData({
       abi: reputationRegistryAbi,
       functionName: "giveFeedback",

@@ -2,7 +2,7 @@ import { DataTypes, Model, type Sequelize } from "sequelize";
 
 export interface FeedbackEventAttributes {
   id?: number;
-  agent_token_id: string;
+  agent_token_id: string | null;
   agent_addr: string | null;
   user_address: string;
   feedback_index: number;
@@ -12,14 +12,14 @@ export interface FeedbackEventAttributes {
   tag2: string | null;
   feedback_uri: string | null;
   feedback_hash: string | null;
-  block_number: number;
-  tx_hash: string;
+  block_number: number | null;
+  tx_hash: string | null;
   event_timestamp: Date;
 }
 
 export class FeedbackEvent extends Model<FeedbackEventAttributes> {
   declare id: number;
-  declare agent_token_id: string;
+  declare agent_token_id: string | null;
   declare agent_addr: string | null;
   declare user_address: string;
   declare feedback_index: number;
@@ -29,8 +29,8 @@ export class FeedbackEvent extends Model<FeedbackEventAttributes> {
   declare tag2: string | null;
   declare feedback_uri: string | null;
   declare feedback_hash: string | null;
-  declare block_number: number;
-  declare tx_hash: string;
+  declare block_number: number | null;
+  declare tx_hash: string | null;
   declare event_timestamp: Date;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -46,7 +46,7 @@ export function initFeedbackEventModel(sequelize: Sequelize): void {
       },
       agent_token_id: {
         type: DataTypes.STRING(32),
-        allowNull: false,
+        allowNull: true,
       },
       agent_addr: {
         type: DataTypes.STRING(42),
@@ -86,11 +86,11 @@ export function initFeedbackEventModel(sequelize: Sequelize): void {
       },
       block_number: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       tx_hash: {
         type: DataTypes.STRING(66),
-        allowNull: false,
+        allowNull: true,
       },
       event_timestamp: {
         type: DataTypes.DATE,

@@ -1,7 +1,7 @@
 ---
 name: ClawBack Credit Assessor
 type: p2p
-version: 0.5.0
+version: 0.6.0
 ---
 
 # Credit Assessor Skill
@@ -84,7 +84,7 @@ clawback credit adjust <address> --from 0xYou --amount <usdc> --apr <rate>
 clawback credit withdraw <address> --from 0xYou
 
 # Submit ERC-8004 credit feedback (pins analysis to IPFS)
-clawback credit feedback <address> --from 0xYou --score 85 --analysis '{"reasoning":"..."}'
+clawback credit feedback <agentId|address> --from 0xYou --score 85 --analysis '{"reasoning":"..."}'
 
 # View your positions
 clawback credit backings <your-address>

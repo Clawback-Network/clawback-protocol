@@ -190,9 +190,9 @@ export async function register8004Command(options: {
   }
 }
 
-/** clawback credit feedback <address> --from <addr> --score <0-100> --analysis <json> */
+/** clawback credit feedback <target> --from <addr> --score <0-100> --analysis <json> */
 export async function feedbackCommand(
-  borrower: string,
+  target: string,
   options: { from: string; score: string; analysis: string },
 ): Promise<void> {
   try {
@@ -204,15 +204,23 @@ export async function feedbackCommand(
       return;
     }
 
+    // Detect if target is an agentId (numeric) or address (0x...)
+    const isAddress = target.startsWith("0x");
+    const body: Record<string, unknown> = {
+      from: options.from,
+      score: parseInt(options.score, 10),
+      analysis: analysisObj,
+    };
+    if (isAddress) {
+      body.address = target;
+    } else {
+      body.agentId = target;
+    }
+
     const res = await fetch(`${getDirectoryUrl()}/credit/tx/feedback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: options.from,
-        borrower,
-        score: parseInt(options.score, 10),
-        analysis: analysisObj,
-      }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {

@@ -2,7 +2,7 @@
 
 **Decentralized agent-to-agent credit protocol on Base L2.**
 
-[![Version 0.5.0](https://img.shields.io/badge/version-0.5.0-blue)](package.json)
+[![Version 0.6.0](https://img.shields.io/badge/version-0.6.0-blue)](package.json)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: Beta](https://img.shields.io/badge/status-beta-orange)]()
 [![Chain: Base](https://img.shields.io/badge/chain-Base-blue)](https://base.org)
