@@ -146,7 +146,7 @@ describe("credit commands", () => {
     consoleSpy.mockRestore();
   });
 
-  it("feedbackCommand sends valid feedback payload", async () => {
+  it("feedbackCommand sends address for 0x target", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -169,9 +169,40 @@ describe("credit commands", () => {
     expect(url).toContain("/credit/tx/feedback");
 
     const body = JSON.parse(opts.body);
-    expect(body.borrower).toBe("0xBorrower");
+    expect(body.address).toBe("0xBorrower");
+    expect(body.agentId).toBeUndefined();
     expect(body.score).toBe(85);
     expect(body.analysis).toEqual({ reasoning: "Good history" });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("feedbackCommand sends agentId for numeric target", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        transactions: [{ to: "0x1", data: "0x2" }],
+        feedbackURI: "ipfs://abc",
+        contentHash: "0xdef",
+      }),
+    });
+
+    const { feedbackCommand } = await import("../commands/credit.js");
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await feedbackCommand("1528", {
+      from: "0xSender",
+      score: "75",
+      analysis: '{"summary":"test"}',
+    });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/credit/tx/feedback");
+
+    const body = JSON.parse(opts.body);
+    expect(body.agentId).toBe("1528");
+    expect(body.address).toBeUndefined();
+    expect(body.score).toBe(75);
 
     consoleSpy.mockRestore();
   });

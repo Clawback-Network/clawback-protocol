@@ -188,12 +188,12 @@ credit
 credit
   .command("feedback")
   .description("Submit ERC-8004 credit feedback for an agent")
-  .argument("<address>", "Agent address to give feedback on")
+  .argument("<target>", "ERC-8004 agent ID or wallet address")
   .requiredOption("--from <address>", "Your assessor address")
   .requiredOption("--score <0-100>", "Credit score (0–100)")
   .requiredOption("--analysis <json>", "Analysis JSON string")
-  .action(async (address: string, options) => {
-    await feedbackCommand(address, options);
+  .action(async (target: string, options) => {
+    await feedbackCommand(target, options);
   });
 
 credit

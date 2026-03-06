@@ -10,7 +10,7 @@ import { CreditBacking } from "./models/CreditBacking.js";
 import { CreditEvent } from "./models/CreditEvent.js";
 import { FeedbackEvent } from "./models/FeedbackEvent.js";
 import { Agent } from "./models/Agent.js";
-import { fetchErc8004Profile } from "./services/erc8004.js";
+import { fetchAgent, fetchErc8004Profile } from "./services/erc8004.js";
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -598,6 +598,45 @@ async function handleNewFeedback(
   });
   if (agent) {
     agentAddr = agent.address;
+  } else {
+    // Agent not in DB — try to resolve via ERC-8004 token ID
+    const erc8004Agent = await fetchAgent(config.chainId, tokenId);
+    if (erc8004Agent?.owner_address) {
+      agentAddr = erc8004Agent.owner_address.toLowerCase();
+
+      const [, created] = await Agent.findOrCreate({
+        where: { address: agentAddr },
+        defaults: {
+          address: agentAddr,
+          name: `Agent ${agentAddr.slice(0, 8)}...`,
+          bio: null,
+          country: null,
+          icon_url: null,
+          erc8004_profile: null,
+          account_type: "agent",
+        },
+        transaction: tx,
+      });
+
+      if (created) {
+        fetchErc8004Profile(agentAddr, config.chainId)
+          .then(async (profile) => {
+            if (profile) {
+              await Agent.update(
+                { erc8004_profile: profile as unknown as Record<string, unknown> },
+                { where: { address: agentAddr! } },
+              );
+            }
+          })
+          .catch((err) =>
+            console.warn(
+              "[indexer] ERC-8004 lookup failed for feedback stub:",
+              (err as Error).message,
+            ),
+          );
+        console.log(`[indexer] Created stub agent profile for ${agentAddr} (from feedback)`);
+      }
+    }
   }
 
   await FeedbackEvent.create(
